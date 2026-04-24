@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FCIM Daily Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,400;1,9..144,500&display=swap" rel="stylesheet" />
+<meta name="built-at" content="{{BUILT_AT}}" />
+<style>
+  :root {
+    --stone: #EAE4DA; --cream: #F3EFE7; --cream-yellow: #F6EFD8;
+    --mustard: #C9A544; --mustard-deep: #6F561A;
+    --ink: #1C1A16; --ink-soft: #3C3730; --muted: #6F675A;
+    --hair: rgba(28,26,22,0.09); --hair-strong: rgba(28,26,22,0.16);
+    --burgundy: #7A2E2E; --burgundy-tint: #F4E6E6;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--stone); color: var(--ink); }
+  body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 15px; line-height: 1.55; -webkit-font-smoothing: antialiased; min-height: 100vh; }
+  .app { max-width: 920px; margin: 0 auto; padding: 56px 32px 96px; }
+
+  header.top { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; padding-bottom: 32px; border-bottom: 1px solid var(--hair); margin-bottom: 32px; }
+  .brandline { display: flex; flex-direction: column; gap: 6px; }
+  .wordmark { font-family: 'Fraunces', ui-serif, Georgia, serif; font-style: italic; font-size: 46px; line-height: 1; color: var(--ink); letter-spacing: -0.01em; }
+  .wordmark .accent { color: var(--mustard); }
+  .tag { font-size: 10px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: var(--mustard-deep); }
+  .right { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: flex-end; }
+  .datestamp { font-family: 'Fraunces', ui-serif, Georgia, serif; font-style: italic; font-size: 14px; color: var(--ink-soft); }
+  .version { font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--mustard); font-weight: 600; }
+
+  .council-line { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+  .council-line .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--mustard); }
+  .council-line .text { font-family: 'Fraunces', ui-serif, Georgia, serif; font-style: italic; font-size: 14px; color: var(--ink-soft); }
+
+  .progress { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px 0 24px; margin-bottom: 28px; border-bottom: 1px solid var(--hair); }
+  .pill { font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; padding: 7px 14px; border-radius: 999px; background: var(--ink); color: var(--cream); border: 1px solid var(--ink); }
+
+  .region-strip { margin-bottom: 40px; }
+  .strip-label { font-size: 10px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: var(--mustard-deep); margin-bottom: 12px; }
+  .region-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .region-chip { font-family: inherit; font-size: 12px; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--hair-strong); background: var(--cream); color: var(--ink-soft); cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: all 160ms ease; }
+  .region-chip:hover:not(:disabled) { border-color: var(--ink); }
+  .region-chip.on { background: var(--mustard); color: var(--ink); border-color: var(--mustard); }
+  .region-chip.empty { opacity: 0.4; cursor: default; }
+  .region-chip .count { font-family: 'Fraunces', ui-serif, Georgia, serif; font-style: italic; font-size: 13px; }
+  .region-chip .lead { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+  .region-chip.on .lead { color: var(--ink); opacity: 0.8; }
+  .clear-filters { font-family: inherit; font-size: 11px; font-style: italic; color: var(--muted); background: transparent; border: 0; cursor: pointer; padding: 8px 0; margin-top: 6px; display: none; }
+  .clear-filters:hover { color: var(--ink); }
+  .clear-filters.show { display: inline-block; }
+
+  .focus-eyebrow { font-size: 10px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: var(--mustard-deep); margin-bottom: 10px; }
+  .focus-title { font-family: 'Fraunces', ui-serif, Georgia, serif; font-style: italic; font-weight: 400; font-size: 34px; letter-spacing: -0.015em; margin: 0 0 28px; color: var(--ink); }
+
+  .service-section { margin-top: 56px; }
+  .service-section.hidden { display: none; }
+  .service-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--hair); margin-bottom: 24px; }
+  .service-header .left h2 { font-family: 'Fraunces', ui-serif, Georgia, serif; font-style: italic; font-weight: 400; font-size: 28px; letter-spacing: -0.01em; margin: 0 0 6px; color: var(--ink); }
+  .service-header .left p { margin: 0; font-size: 13px; color: var(--ink-soft); }
+  .service-header .right-meta { text-align: right; font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--mustard-deep); flex-shrink: 0; white-space: nowrap; padding-top: 6px; }
+  .items { display: flex; flex-direction: column; gap: 32px; }
+  .empty-note { padding: 20px; background: var(--cream); border-radius: 3px; text-align: center; color: var(--muted); font-family: 'Fraunces', ui-serif, Georgia, serif; font-style: italic; font-size: 14px; }
+
+  .prospect { background: var(--cream); padding: 36px 40px 40px; border-radius: 3px; }
+  .prospect.featured { padding: 44px 48px 48px; background: linear-gradient(180deg, var(--cream) 0%, var(--cream-yellow) 100%); }
+  .prospect.coi { border-left: 3px solid var(--burgundy); }
+  .prospect.hidden { display: none; }
+
+  .service-tag { display: inline-block; font-size: 10px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: var(--mustard-deep); margin-bottom: 18px; }
+  .head-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; margin-bottom: 26px; }
+  .head-main { flex: 1; min-width: 0; }
+  .head-main h3 { font-family: 'Fraunces', ui-serif, Georgia, serif; font-style: italic; font-weight: 400; font-size: 26px; line-height: 1.18; letter-spacing: -0.01em; margin: 0 0 8px; color: var(--ink); }
+  .prospect.featured .head-main h3 { font-size: 36px; }
+  .head-main h3 a { color: inherit; text-decoration: none; transition: color 160ms ease; }
+  .head-main h3 a:hover { color: var(--mustard-deep); }
+  .head-main .sub { font-size: 13px; color: var(--ink-soft); }
+  .head-main .sub .dot { margin: 0 8px; color: var(--muted); }
+  .lead-block { font-family: 'Fraunces', ui-serif, Georgia, serif; font-style: italic; font-size: 13px; color: var(--ink-soft); text-align: right; flex-shrink: 0; white-space: nowrap; padding-top: 4px; }
+  .lead-block .lead-label { display: block; font-family: ui-sans-serif, system-ui, sans-serif; font-style: normal; font-size: 9px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: var(--mustard-deep); margin-bottom: 3px; }
+
+  .section { padding: 16px 0; border-top: 1px solid var(--hair); }
+  .section:first-of-type { border-top: 0; padding-top: 0; }
+  .section .label { font-size: 10px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: var(--mustard-deep); margin-bottom: 6px; }
+  .section p { margin: 0; color: var(--ink-soft); }
+
+  .meta-row { font-size: 13px; color: var(--muted); margin-top: 12px; }
+  .meta-row strong { color: var(--ink-soft); font-weight: 500; }
+  .meta-row .sep { margin: 0 10px; color: var(--hair-strong); }
+
+  .first-step { margin-top: 22px; padding: 20px 24px; background: var(--cream-yellow); border-left: 3px solid var(--mustard); border-radius: 2px; }
+  .prospect.featured .first-step { background: var(--cream); }
+  .first-step .label { font-size: 10px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: var(--mustard-deep); margin-bottom: 6px; }
+  .first-step p { margin: 0 0 14px; color: var(--ink); font-size: 14px; }
+  .draft-btn { font-family: inherit; font-size: 11px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; background: var(--ink); color: var(--cream); border: 0; padding: 9px 18px; border-radius: 999px; cursor: pointer; transition: all 160ms ease; }
+  .draft-btn:hover { background: var(--mustard-deep); }
+  .draft-btn.copied { background: var(--mustard); color: var(--ink); }
+
+  .compliance { margin-top: 18px; padding: 14px 18px; background: var(--burgundy-tint); border-left: 3px solid var(--burgundy); border-radius: 2px; color: var(--burgundy); font-size: 13px; }
+  .compliance.pep { background: var(--cream-yellow); border-left-color: var(--mustard-deep); color: var(--mustard-deep); }
+  .compliance .label { font-size: 10px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; margin-bottom: 4px; display: block; }
+
+  .source-link { display: inline-block; margin-top: 18px; font-family: 'Fraunces', ui-serif, Georgia, serif; font-style: italic; font-size: 13px; color: var(--mustard-deep); text-decoration: none; }
+  .source-link:hover { color: var(--ink); }
+
+  .toast { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--ink); color: var(--cream); padding: 12px 20px; border-radius: 999px; font-size: 13px; opacity: 0; pointer-events: none; transition: all 240ms ease; z-index: 100; max-width: 90vw; text-align: center; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  footer.foot { margin-top: 88px; padding-top: 28px; border-top: 1px solid var(--hair); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+
+  @media (max-width: 640px) {
+    .app { padding: 36px 20px 80px; }
+    .wordmark { font-size: 34px; }
+    header.top { flex-direction: column; align-items: flex-start; }
+    .right { align-self: flex-start; }
+    .prospect { padding: 28px 22px 30px; }
+    .prospect.featured { padding: 32px 24px 34px; }
+    .head-main h3 { font-size: 22px; }
+    .prospect.featured .head-main h3 { font-size: 26px; }
+    .head-row { flex-direction: column; gap: 12px; }
+    .lead-block { text-align: left; }
+    .service-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .service-header .right-meta { text-align: left; }
+    .focus-title { font-size: 26px; }
+  }
+</style>
+</head>
+<body>
+  <div class="app">
+    <header class="top">
+      <div class="brandline">
+        <div class="tag">Daily Intelligence</div>
+        <div class="wordmark">F<span class="accent">C</span>IM</div>
+      </div>
+      <div class="right">
+        <span class="datestamp">{{DATE}}</span>
+        <span class="version">GitHub · Daily build</span>
+      </div>
+    </header>
+
+    <div class="council-line">
+      <span class="dot"></span>
+      <span class="text">{{COUNCIL_LINE}}</span>
+    </div>
+
+    <div class="progress">
+      <span class="pill">Research</span><span class="pill">Verify</span><span class="pill">Profile</span><span class="pill">Compliance</span><span class="pill">QC</span><span class="pill">Audit</span><span class="pill">Outreach</span>
+    </div>
+
+    <div class="region-strip">
+      <div class="strip-label">Regions reporting today</div>
+      <div class="region-chips" id="region-chips">{{REGION_CHIPS}}</div>
+      <button class="clear-filters" id="clear-region">Clear region filter</button>
+    </div>
+
+    <div id="focus-wrap" style="{{FEATURED_WRAPPER_STYLE}}">
+      <div class="focus-eyebrow">Today&rsquo;s Focus</div>
+      <h2 class="focus-title">Strongest signal</h2>
+      <div id="featured">{{FEATURED}}</div>
+    </div>
+
+    <div id="content">{{CONTENT}}</div>
+
+    <footer class="foot">
+      <span>Fundament Capital &middot; Business Bay &middot; Office 1511</span>
+      <span>SCA-Licensed &middot; USD 5.5B AUM</span>
+    </footer>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+  // Region filter — filter already-rendered cards client-side
+  let selectedRegion = null;
+  function applyRegionFilter() {
+    const prospects = document.querySelectorAll('.prospect');
+    const sections = document.querySelectorAll('.service-section');
+    prospects.forEach(p => {
+      const r = p.dataset.region || '';
+      const show = !selectedRegion || r === selectedRegion;
+      p.classList.toggle('hidden', !show);
+    });
+    sections.forEach(sec => {
+      const visible = sec.querySelectorAll('.prospect:not(.hidden)').length;
+      sec.classList.toggle('hidden', selectedRegion && visible === 0);
+    });
+    document.querySelectorAll('.region-chip').forEach(c => {
+      c.classList.toggle('on', c.dataset.region === selectedRegion);
+    });
+    document.getElementById('clear-region').classList.toggle('show', !!selectedRegion);
+  }
+  document.getElementById('region-chips').addEventListener('click', e => {
+    const btn = e.target.closest('.region-chip');
+    if (!btn || btn.disabled) return;
+    const r = btn.dataset.region;
+    selectedRegion = selectedRegion === r ? null : r;
+    applyRegionFilter();
+  });
+  document.getElementById('clear-region').addEventListener('click', () => {
+    selectedRegion = null;
+    applyRegionFilter();
+  });
+
+  // Draft prompt copy
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    clearTimeout(t._h);
+    t._h = setTimeout(() => t.classList.remove('show'), 3000);
+  }
+  document.addEventListener('click', async e => {
+    const btn = e.target.closest('.draft-btn');
+    if (!btn) return;
+    const prompt = btn.dataset.prompt;
+    try { await navigator.clipboard.writeText(prompt); }
+    catch (_) {
+      const ta = document.createElement('textarea');
+      ta.value = prompt; document.body.appendChild(ta);
+      ta.select(); document.execCommand('copy'); ta.remove();
+    }
+    btn.classList.add('copied');
+    btn.textContent = 'Copied — paste in Claude chat';
+    showToast('Draft prompt copied. Paste in Claude chat and Yehya\u2019s email comes back.');
+    setTimeout(() => { btn.classList.remove('copied'); btn.textContent = 'Copy draft prompt'; }, 4000);
+  });
+</script>
+</body>
+</html>
