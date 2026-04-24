@@ -4,26 +4,994 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>FCIM Daily Intelligence</title>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;1,9..144,400&display=swap" rel="stylesheet" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,400;1,9..144,500&display=swap" rel="stylesheet" />
+<meta name="built-at" content="2026-04-24T11:06:38.439Z" />
 <style>
-  body { margin: 0; background: #EAE4DA; color: #1C1A16; font-family: ui-sans-serif, system-ui, sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 40px; }
-  .card { max-width: 560px; text-align: center; }
-  .tag { font-size: 10px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: #6F561A; margin-bottom: 8px; }
-  .wordmark { font-family: 'Fraunces', serif; font-style: italic; font-size: 64px; line-height: 1; margin-bottom: 32px; }
-  .wordmark .accent { color: #C9A544; }
-  h1 { font-family: 'Fraunces', serif; font-style: italic; font-weight: 400; font-size: 28px; margin: 0 0 16px; }
-  p { color: #3C3730; line-height: 1.6; margin: 0 0 12px; }
-  .hint { font-size: 13px; color: #6F675A; margin-top: 24px; font-style: italic; font-family: 'Fraunces', serif; }
+  :root {
+    --stone: #EAE4DA; --cream: #F3EFE7; --cream-yellow: #F6EFD8;
+    --mustard: #C9A544; --mustard-deep: #6F561A;
+    --ink: #1C1A16; --ink-soft: #3C3730; --muted: #6F675A;
+    --hair: rgba(28,26,22,0.09); --hair-strong: rgba(28,26,22,0.16);
+    --burgundy: #7A2E2E; --burgundy-tint: #F4E6E6;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--stone); color: var(--ink); }
+  body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 15px; line-height: 1.55; -webkit-font-smoothing: antialiased; min-height: 100vh; }
+  .app { max-width: 920px; margin: 0 auto; padding: 56px 32px 96px; }
+
+  header.top { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; padding-bottom: 32px; border-bottom: 1px solid var(--hair); margin-bottom: 32px; }
+  .brandline { display: flex; flex-direction: column; gap: 6px; }
+  .wordmark { font-family: 'Fraunces', ui-serif, Georgia, serif; font-style: italic; font-size: 46px; line-height: 1; color: var(--ink); letter-spacing: -0.01em; }
+  .wordmark .accent { color: var(--mustard); }
+  .tag { font-size: 10px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: var(--mustard-deep); }
+  .right { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: flex-end; }
+  .datestamp { font-family: 'Fraunces', ui-serif, Georgia, serif; font-style: italic; font-size: 14px; color: var(--ink-soft); }
+  .version { font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--mustard); font-weight: 600; }
+
+  .council-line { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+  .council-line .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--mustard); }
+  .council-line .text { font-family: 'Fraunces', ui-serif, Georgia, serif; font-style: italic; font-size: 14px; color: var(--ink-soft); }
+
+  .progress { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px 0 24px; margin-bottom: 28px; border-bottom: 1px solid var(--hair); }
+  .pill { font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; padding: 7px 14px; border-radius: 999px; background: var(--ink); color: var(--cream); border: 1px solid var(--ink); }
+
+  .region-strip { margin-bottom: 40px; }
+  .strip-label { font-size: 10px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: var(--mustard-deep); margin-bottom: 12px; }
+  .region-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .region-chip { font-family: inherit; font-size: 12px; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--hair-strong); background: var(--cream); color: var(--ink-soft); cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: all 160ms ease; }
+  .region-chip:hover:not(:disabled) { border-color: var(--ink); }
+  .region-chip.on { background: var(--mustard); color: var(--ink); border-color: var(--mustard); }
+  .region-chip.empty { opacity: 0.4; cursor: default; }
+  .region-chip .count { font-family: 'Fraunces', ui-serif, Georgia, serif; font-style: italic; font-size: 13px; }
+  .region-chip .lead { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+  .region-chip.on .lead { color: var(--ink); opacity: 0.8; }
+  .clear-filters { font-family: inherit; font-size: 11px; font-style: italic; color: var(--muted); background: transparent; border: 0; cursor: pointer; padding: 8px 0; margin-top: 6px; display: none; }
+  .clear-filters:hover { color: var(--ink); }
+  .clear-filters.show { display: inline-block; }
+
+  .focus-eyebrow { font-size: 10px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: var(--mustard-deep); margin-bottom: 10px; }
+  .focus-title { font-family: 'Fraunces', ui-serif, Georgia, serif; font-style: italic; font-weight: 400; font-size: 34px; letter-spacing: -0.015em; margin: 0 0 28px; color: var(--ink); }
+
+  .service-section { margin-top: 56px; }
+  .service-section.hidden { display: none; }
+  .service-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--hair); margin-bottom: 24px; }
+  .service-header .left h2 { font-family: 'Fraunces', ui-serif, Georgia, serif; font-style: italic; font-weight: 400; font-size: 28px; letter-spacing: -0.01em; margin: 0 0 6px; color: var(--ink); }
+  .service-header .left p { margin: 0; font-size: 13px; color: var(--ink-soft); }
+  .service-header .right-meta { text-align: right; font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--mustard-deep); flex-shrink: 0; white-space: nowrap; padding-top: 6px; }
+  .items { display: flex; flex-direction: column; gap: 32px; }
+  .empty-note { padding: 20px; background: var(--cream); border-radius: 3px; text-align: center; color: var(--muted); font-family: 'Fraunces', ui-serif, Georgia, serif; font-style: italic; font-size: 14px; }
+
+  .prospect { background: var(--cream); padding: 36px 40px 40px; border-radius: 3px; }
+  .prospect.featured { padding: 44px 48px 48px; background: linear-gradient(180deg, var(--cream) 0%, var(--cream-yellow) 100%); }
+  .prospect.coi { border-left: 3px solid var(--burgundy); }
+  .prospect.hidden { display: none; }
+
+  .service-tag { display: inline-block; font-size: 10px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: var(--mustard-deep); margin-bottom: 18px; }
+  .head-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; margin-bottom: 26px; }
+  .head-main { flex: 1; min-width: 0; }
+  .head-main h3 { font-family: 'Fraunces', ui-serif, Georgia, serif; font-style: italic; font-weight: 400; font-size: 26px; line-height: 1.18; letter-spacing: -0.01em; margin: 0 0 8px; color: var(--ink); }
+  .prospect.featured .head-main h3 { font-size: 36px; }
+  .head-main h3 a { color: inherit; text-decoration: none; transition: color 160ms ease; }
+  .head-main h3 a:hover { color: var(--mustard-deep); }
+  .head-main .sub { font-size: 13px; color: var(--ink-soft); }
+  .head-main .sub .dot { margin: 0 8px; color: var(--muted); }
+  .lead-block { font-family: 'Fraunces', ui-serif, Georgia, serif; font-style: italic; font-size: 13px; color: var(--ink-soft); text-align: right; flex-shrink: 0; white-space: nowrap; padding-top: 4px; }
+  .lead-block .lead-label { display: block; font-family: ui-sans-serif, system-ui, sans-serif; font-style: normal; font-size: 9px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: var(--mustard-deep); margin-bottom: 3px; }
+
+  .section { padding: 16px 0; border-top: 1px solid var(--hair); }
+  .section:first-of-type { border-top: 0; padding-top: 0; }
+  .section .label { font-size: 10px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: var(--mustard-deep); margin-bottom: 6px; }
+  .section p { margin: 0; color: var(--ink-soft); }
+
+  .meta-row { font-size: 13px; color: var(--muted); margin-top: 12px; }
+  .meta-row strong { color: var(--ink-soft); font-weight: 500; }
+  .meta-row .sep { margin: 0 10px; color: var(--hair-strong); }
+
+  .first-step { margin-top: 22px; padding: 20px 24px; background: var(--cream-yellow); border-left: 3px solid var(--mustard); border-radius: 2px; }
+  .prospect.featured .first-step { background: var(--cream); }
+  .first-step .label { font-size: 10px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: var(--mustard-deep); margin-bottom: 6px; }
+  .first-step p { margin: 0 0 14px; color: var(--ink); font-size: 14px; }
+  .draft-btn { font-family: inherit; font-size: 11px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; background: var(--ink); color: var(--cream); border: 0; padding: 9px 18px; border-radius: 999px; cursor: pointer; transition: all 160ms ease; }
+  .draft-btn:hover { background: var(--mustard-deep); }
+  .draft-btn.copied { background: var(--mustard); color: var(--ink); }
+
+  .compliance { margin-top: 18px; padding: 14px 18px; background: var(--burgundy-tint); border-left: 3px solid var(--burgundy); border-radius: 2px; color: var(--burgundy); font-size: 13px; }
+  .compliance.pep { background: var(--cream-yellow); border-left-color: var(--mustard-deep); color: var(--mustard-deep); }
+  .compliance .label { font-size: 10px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; margin-bottom: 4px; display: block; }
+
+  .source-link { display: inline-block; margin-top: 18px; font-family: 'Fraunces', ui-serif, Georgia, serif; font-style: italic; font-size: 13px; color: var(--mustard-deep); text-decoration: none; }
+  .source-link:hover { color: var(--ink); }
+
+  .toast { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--ink); color: var(--cream); padding: 12px 20px; border-radius: 999px; font-size: 13px; opacity: 0; pointer-events: none; transition: all 240ms ease; z-index: 100; max-width: 90vw; text-align: center; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  footer.foot { margin-top: 88px; padding-top: 28px; border-top: 1px solid var(--hair); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+
+  @media (max-width: 640px) {
+    .app { padding: 36px 20px 80px; }
+    .wordmark { font-size: 34px; }
+    header.top { flex-direction: column; align-items: flex-start; }
+    .right { align-self: flex-start; }
+    .prospect { padding: 28px 22px 30px; }
+    .prospect.featured { padding: 32px 24px 34px; }
+    .head-main h3 { font-size: 22px; }
+    .prospect.featured .head-main h3 { font-size: 26px; }
+    .head-row { flex-direction: column; gap: 12px; }
+    .lead-block { text-align: left; }
+    .service-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .service-header .right-meta { text-align: left; }
+    .focus-title { font-size: 26px; }
+  }
 </style>
 </head>
 <body>
-  <div class="card">
-    <div class="tag">Daily Intelligence</div>
-    <div class="wordmark">F<span class="accent">C</span>IM</div>
-    <h1>First build pending</h1>
-    <p>This page refreshes itself every morning at 7am Dubai with today&rsquo;s prospect signals.</p>
-    <p>Go to the repository&rsquo;s Actions tab and click <strong>Run workflow</strong> on &ldquo;Daily Build&rdquo; to trigger the first build now.</p>
-    <p class="hint">Once it runs, this page replaces itself and you never see this message again.</p>
+  <div class="app">
+    <header class="top">
+      <div class="brandline">
+        <div class="tag">Daily Intelligence</div>
+        <div class="wordmark">F<span class="accent">C</span>IM</div>
+      </div>
+      <div class="right">
+        <span class="datestamp">Friday, 24 April 2026</span>
+        <span class="version">GitHub · Daily build</span>
+      </div>
+    </header>
+
+    <div class="council-line">
+      <span class="dot"></span>
+      <span class="text">Council convened — 16 live signals scanned, 0 blocked on compliance, 0 regions active.</span>
+    </div>
+
+    <div class="progress">
+      <span class="pill">Research</span><span class="pill">Verify</span><span class="pill">Profile</span><span class="pill">Compliance</span><span class="pill">QC</span><span class="pill">Audit</span><span class="pill">Outreach</span>
+    </div>
+
+    <div class="region-strip">
+      <div class="strip-label">Regions reporting today</div>
+      <div class="region-chips" id="region-chips">
+      <button class="region-chip empty" disabled>
+        <span>Egypt</span>
+        <span class="count">0</span>
+        <span class="lead">Ibrahim</span>
+      </button>
+      <button class="region-chip empty" disabled>
+        <span>Lebanon / Levant</span>
+        <span class="count">0</span>
+        <span class="lead">Amr</span>
+      </button>
+      <button class="region-chip empty" disabled>
+        <span>Russia / CIS</span>
+        <span class="count">0</span>
+        <span class="lead">Dmitri</span>
+      </button>
+      <button class="region-chip empty" disabled>
+        <span>India</span>
+        <span class="count">0</span>
+        <span class="lead">Saran</span>
+      </button>
+      <button class="region-chip empty" disabled>
+        <span>Africa</span>
+        <span class="count">0</span>
+        
+      </button>
+      <button class="region-chip empty" disabled>
+        <span>UK / Western</span>
+        <span class="count">0</span>
+        <span class="lead">Steven</span>
+      </button></div>
+      <button class="clear-filters" id="clear-region">Clear region filter</button>
+    </div>
+
+    <div id="focus-wrap" style="">
+      <div class="focus-eyebrow">Today&rsquo;s Focus</div>
+      <h2 class="focus-title">Strongest signal</h2>
+      <div id="featured">
+    <article class="prospect featured " data-region="">
+      <div class="service-tag">IB &amp; Advisory</div>
+      <div class="head-row">
+        <div class="head-main">
+          <h3><a href="https://news.google.com/rss/articles/CBMimgFBVV95cUxNZEhJSW5XLVFUcURKNmdKT1ZGbnRmN0VnRWdmS1p6dEZLU2xaQnBMUGhXWlE4Wm1wWGJDMmozNzk3V1gxbzNIUTBHVElIT0pYb05wRUkxNVAtOUpjMmRZbnZXWldQbTdtTXlEdzl0TkR2Slc1a09QSmNENkM1M0hsSk81Zm1rZUVXQ1JCaWFoOVhGTG5tX1duT1Bn0gGqAUFVX3lxTE1UWjhZVm1UNkRmdFBRMlhEMC1QRXhoS0o1ZWxMR2JLVmVvWEZna2p4Snp4ZkI4V3didVFpRVZhX0UxeV9ic05pb3I5Z0hSQzJpMk53YVhKSUxFTElfdTF6MHE1THhxS1FHeXRraFNNYS12dDc0QnVlZ3lPRC1CdnNVQktlcWJhY1M5UU5FWHpLT2I0bWlIQnRzcU9uVEpLMU50aVZ4Xy1XTzJR?oc=5" target="_blank" rel="noopener noreferrer">Dubai Investments to decide on DIP IPO before May 15</a></h3>
+          <div class="sub">
+            Gulf News<span class="dot">·</span>1h ago
+          </div>
+        </div>
+        
+      </div>
+      <div class="section">
+        <div class="label">Signal</div>
+        <p>Dubai Investments to decide on DIP IPO before May 15 Gulf News</p>
+      </div>
+      <div class="section">
+        <div class="label">FCIM Solution</div>
+        <p>Tim Almashat-led IB desk. ECM, DCM, M&amp;A in the USD 50-150M band with deep GCC family office sell-side coverage. Co-origination for regional transactions.</p>
+      </div>
+      <div class="meta-row">
+        <strong>Medium</strong> signal strength <span class="sep">/</span> Act this week
+      </div>
+      <div class="section">
+        <div class="label">Warm Path</div>
+        <p>Region indeterminate. Identify the subject’s origin from the source article, then route to the relevant FCIM colleague.</p>
+      </div>
+      
+      <div class="first-step">
+        <div class="label">First Step</div>
+        <p>Open the source article, identify the decision-maker, then approach via the FCIM colleague best matched to their nationality/sector. Tap below to copy a draft prompt with the context.</p>
+        <button class="draft-btn" data-prompt="Draft Yehya Abdelbaki&#039;s FCIM outreach based on this live news signal.
+
+Headline: Dubai Investments to decide on DIP IPO before May 15
+Source: Gulf News
+Date: 2026-04-24
+Link: https://news.google.com/rss/articles/CBMimgFBVV95cUxNZEhJSW5XLVFUcURKNmdKT1ZGbnRmN0VnRWdmS1p6dEZLU2xaQnBMUGhXWlE4Wm1wWGJDMmozNzk3V1gxbzNIUTBHVElIT0pYb05wRUkxNVAtOUpjMmRZbnZXWldQbTdtTXlEdzl0TkR2Slc1a09QSmNENkM1M0hsSk81Zm1rZUVXQ1JCaWFoOVhGTG5tX1duT1Bn0gGqAUFVX3lxTE1UWjhZVm1UNkRmdFBRMlhEMC1QRXhoS0o1ZWxMR2JLVmVvWEZna2p4Snp4ZkI4V3didVFpRVZhX0UxeV9ic05pb3I5Z0hSQzJpMk53YVhKSUxFTElfdTF6MHE1THhxS1FHeXRraFNNYS12dDc0QnVlZ3lPRC1CdnNVQktlcWJhY1M5UU5FWHpLT2I0bWlIQnRzcU9uVEpLMU50aVZ4Xy1XTzJR?oc=5
+Context: Dubai Investments to decide on DIP IPO before May 15 Gulf News
+
+Matched FCIM service: IB &amp; Advisory
+Region: (not detected)
+Suggested lead: (route by context)
+
+Write a &lt;200 word email in Yehya&#039;s voice to the decision-maker at the company in the headline. Reference specifics from the news. Mention the FCIM colleague naturally only where it adds credibility. End with the full Yehya signature block (Yehya Abdelbaki / Relationship Manager / Fundament Capital Investment Management / yehya.abdelbaki@fundamentcapital.ae | +971 4 834 8385).">Copy draft prompt</button>
+      </div>
+      <a class="source-link" href="https://news.google.com/rss/articles/CBMimgFBVV95cUxNZEhJSW5XLVFUcURKNmdKT1ZGbnRmN0VnRWdmS1p6dEZLU2xaQnBMUGhXWlE4Wm1wWGJDMmozNzk3V1gxbzNIUTBHVElIT0pYb05wRUkxNVAtOUpjMmRZbnZXWldQbTdtTXlEdzl0TkR2Slc1a09QSmNENkM1M0hsSk81Zm1rZUVXQ1JCaWFoOVhGTG5tX1duT1Bn0gGqAUFVX3lxTE1UWjhZVm1UNkRmdFBRMlhEMC1QRXhoS0o1ZWxMR2JLVmVvWEZna2p4Snp4ZkI4V3didVFpRVZhX0UxeV9ic05pb3I5Z0hSQzJpMk53YVhKSUxFTElfdTF6MHE1THhxS1FHeXRraFNNYS12dDc0QnVlZ3lPRC1CdnNVQktlcWJhY1M5UU5FWHpLT2I0bWlIQnRzcU9uVEpLMU50aVZ4Xy1XTzJR?oc=5" target="_blank" rel="noopener noreferrer">Read the source article <span class="arrow">›</span></a>
+    </article>
   </div>
+    </div>
+
+    <div id="content">
+    <section class="service-section" data-service="Foundation + Private Fund">
+      <div class="service-header">
+        <div class="left">
+          <h2>Foundation + Private Fund</h2>
+          <p>UAE Foundation over CMA fund. Three-level control. EUR 100M+ restructure executed.</p>
+        </div>
+        <div class="right-meta">4 signals</div>
+      </div>
+      <div class="items">
+    <article class="prospect  " data-region="">
+      <div class="service-tag">Foundation + Private Fund</div>
+      <div class="head-row">
+        <div class="head-main">
+          <h3><a href="https://news.google.com/rss/articles/CBMi1gFBVV95cUxPQnVXSW9QS19yLUFTZTVKSFlJaUxuNWZRaGZwTnNPRFpmQnB2MTJxT2tUSTBfX0U1bUF2YXRZc2V0N040MnpiTWRXdmxkdFQzV1lkbVpweTd0RUdHaXFQd2llS3B2cU9ORzF3S21NM0FCWFE0allPVms1MVRPaHRJbTVuWG5RcHlSRXBQdDdNaERXQ25wcnVnUUlLTkF3d0o4UmowajNHQ3JlNkg5dk43UElZekN1Zy1TWWt5YUNZajZFMGRKNnhIRDZHZWdjUnJVQ0pabFJ3?oc=5" target="_blank" rel="noopener noreferrer">Younger heirs are reshaping family office investing across the UAE, Saudi Arabia and global markets</a></h3>
+          <div class="sub">
+            Arabian Business<span class="dot">·</span>3d ago
+          </div>
+        </div>
+        
+      </div>
+      <div class="section">
+        <div class="label">Signal</div>
+        <p>Younger heirs are reshaping family office investing across the UAE, Saudi Arabia and global markets Arabian Business</p>
+      </div>
+      <div class="section">
+        <div class="label">FCIM Solution</div>
+        <p>UAE Foundation owning a CMA private fund. Three-level control, UBO privacy, onshore UAE governance. Directly analogous to the EUR 100M+ CIS real-estate restructure FCIM executed last year.</p>
+      </div>
+      <div class="meta-row">
+        <strong>Medium</strong> signal strength <span class="sep">/</span> Act this week
+      </div>
+      <div class="section">
+        <div class="label">Warm Path</div>
+        <p>Region indeterminate. Identify the subject’s origin from the source article, then route to the relevant FCIM colleague.</p>
+      </div>
+      
+      <div class="first-step">
+        <div class="label">First Step</div>
+        <p>Open the source article, identify the decision-maker, then approach via the FCIM colleague best matched to their nationality/sector. Tap below to copy a draft prompt with the context.</p>
+        <button class="draft-btn" data-prompt="Draft Yehya Abdelbaki&#039;s FCIM outreach based on this live news signal.
+
+Headline: Younger heirs are reshaping family office investing across the UAE, Saudi Arabia and global markets
+Source: Arabian Business
+Date: 2026-04-21
+Link: https://news.google.com/rss/articles/CBMi1gFBVV95cUxPQnVXSW9QS19yLUFTZTVKSFlJaUxuNWZRaGZwTnNPRFpmQnB2MTJxT2tUSTBfX0U1bUF2YXRZc2V0N040MnpiTWRXdmxkdFQzV1lkbVpweTd0RUdHaXFQd2llS3B2cU9ORzF3S21NM0FCWFE0allPVms1MVRPaHRJbTVuWG5RcHlSRXBQdDdNaERXQ25wcnVnUUlLTkF3d0o4UmowajNHQ3JlNkg5dk43UElZekN1Zy1TWWt5YUNZajZFMGRKNnhIRDZHZWdjUnJVQ0pabFJ3?oc=5
+Context: Younger heirs are reshaping family office investing across the UAE, Saudi Arabia and global markets Arabian Business
+
+Matched FCIM service: Foundation + Private Fund
+Region: (not detected)
+Suggested lead: (route by context)
+
+Write a &lt;200 word email in Yehya&#039;s voice to the decision-maker at the company in the headline. Reference specifics from the news. Mention the FCIM colleague naturally only where it adds credibility. End with the full Yehya signature block (Yehya Abdelbaki / Relationship Manager / Fundament Capital Investment Management / yehya.abdelbaki@fundamentcapital.ae | +971 4 834 8385).">Copy draft prompt</button>
+      </div>
+      <a class="source-link" href="https://news.google.com/rss/articles/CBMi1gFBVV95cUxPQnVXSW9QS19yLUFTZTVKSFlJaUxuNWZRaGZwTnNPRFpmQnB2MTJxT2tUSTBfX0U1bUF2YXRZc2V0N040MnpiTWRXdmxkdFQzV1lkbVpweTd0RUdHaXFQd2llS3B2cU9ORzF3S21NM0FCWFE0allPVms1MVRPaHRJbTVuWG5RcHlSRXBQdDdNaERXQ25wcnVnUUlLTkF3d0o4UmowajNHQ3JlNkg5dk43UElZekN1Zy1TWWt5YUNZajZFMGRKNnhIRDZHZWdjUnJVQ0pabFJ3?oc=5" target="_blank" rel="noopener noreferrer">Read the source article <span class="arrow">›</span></a>
+    </article>
+  
+    <article class="prospect  " data-region="">
+      <div class="service-tag">Foundation + Private Fund</div>
+      <div class="head-row">
+        <div class="head-main">
+          <h3><a href="https://news.google.com/rss/articles/CBMi0wFBVV95cUxPVW84dVBnSUF3NTBjUll6aGVMWDJZaUJlSVhWNEhjZHVacjN0OVF0RXlsLW5nMmdxS3RFMU82clYyazRHTldaYzVKaXFYb1R3R3hFNXAya0YxYWZPS3d1UDFJVVZZaTYzalBmS2VnMjlJUlU0SmpyMDlPTHVvdGRoVXN4eDFLcVpTb01hMG1LS1p0Z1FfbjRweXJ5VXU1YjNhaTVFNTBJX3lEQmlhc0Fmc3lndTczVnVTRUpMcGdDT0J1WFc3YVVPQldRei1wcUZJTnJN?oc=5" target="_blank" rel="noopener noreferrer">The Family Office launches Wealth Mermaid, a pioneering AI wealth assistant</a></h3>
+          <div class="sub">
+            ZAWYA<span class="dot">·</span>4d ago
+          </div>
+        </div>
+        
+      </div>
+      <div class="section">
+        <div class="label">Signal</div>
+        <p>The Family Office launches Wealth Mermaid, a pioneering AI wealth assistant ZAWYA</p>
+      </div>
+      <div class="section">
+        <div class="label">FCIM Solution</div>
+        <p>UAE Foundation owning a CMA private fund. Three-level control, UBO privacy, onshore UAE governance. Directly analogous to the EUR 100M+ CIS real-estate restructure FCIM executed last year.</p>
+      </div>
+      <div class="meta-row">
+        <strong>Medium</strong> signal strength <span class="sep">/</span> Act this week
+      </div>
+      <div class="section">
+        <div class="label">Warm Path</div>
+        <p>Region indeterminate. Identify the subject’s origin from the source article, then route to the relevant FCIM colleague.</p>
+      </div>
+      
+      <div class="first-step">
+        <div class="label">First Step</div>
+        <p>Open the source article, identify the decision-maker, then approach via the FCIM colleague best matched to their nationality/sector. Tap below to copy a draft prompt with the context.</p>
+        <button class="draft-btn" data-prompt="Draft Yehya Abdelbaki&#039;s FCIM outreach based on this live news signal.
+
+Headline: The Family Office launches Wealth Mermaid, a pioneering AI wealth assistant
+Source: ZAWYA
+Date: 2026-04-20
+Link: https://news.google.com/rss/articles/CBMi0wFBVV95cUxPVW84dVBnSUF3NTBjUll6aGVMWDJZaUJlSVhWNEhjZHVacjN0OVF0RXlsLW5nMmdxS3RFMU82clYyazRHTldaYzVKaXFYb1R3R3hFNXAya0YxYWZPS3d1UDFJVVZZaTYzalBmS2VnMjlJUlU0SmpyMDlPTHVvdGRoVXN4eDFLcVpTb01hMG1LS1p0Z1FfbjRweXJ5VXU1YjNhaTVFNTBJX3lEQmlhc0Fmc3lndTczVnVTRUpMcGdDT0J1WFc3YVVPQldRei1wcUZJTnJN?oc=5
+Context: The Family Office launches Wealth Mermaid, a pioneering AI wealth assistant ZAWYA
+
+Matched FCIM service: Foundation + Private Fund
+Region: (not detected)
+Suggested lead: (route by context)
+
+Write a &lt;200 word email in Yehya&#039;s voice to the decision-maker at the company in the headline. Reference specifics from the news. Mention the FCIM colleague naturally only where it adds credibility. End with the full Yehya signature block (Yehya Abdelbaki / Relationship Manager / Fundament Capital Investment Management / yehya.abdelbaki@fundamentcapital.ae | +971 4 834 8385).">Copy draft prompt</button>
+      </div>
+      <a class="source-link" href="https://news.google.com/rss/articles/CBMi0wFBVV95cUxPVW84dVBnSUF3NTBjUll6aGVMWDJZaUJlSVhWNEhjZHVacjN0OVF0RXlsLW5nMmdxS3RFMU82clYyazRHTldaYzVKaXFYb1R3R3hFNXAya0YxYWZPS3d1UDFJVVZZaTYzalBmS2VnMjlJUlU0SmpyMDlPTHVvdGRoVXN4eDFLcVpTb01hMG1LS1p0Z1FfbjRweXJ5VXU1YjNhaTVFNTBJX3lEQmlhc0Fmc3lndTczVnVTRUpMcGdDT0J1WFc3YVVPQldRei1wcUZJTnJN?oc=5" target="_blank" rel="noopener noreferrer">Read the source article <span class="arrow">›</span></a>
+    </article>
+  
+    <article class="prospect  " data-region="">
+      <div class="service-tag">Foundation + Private Fund</div>
+      <div class="head-row">
+        <div class="head-main">
+          <h3><a href="https://news.google.com/rss/articles/CBMilAFBVV95cUxQWkszMjB6SW1VZEJNT09pRHdiUTcxNndNYTRqQ0NBXzRUb0N4ZVk4V1F4eG03LWhjblo1R1BVOVRwRUVqOUdNcnRjYkkwdmJ3MkQ2RFpNMFBHazRPNXBld3ItTHBLRHk2dWxlbDZyVUVlaHluX0psR2drNmZLeW4wSV8wQ0x4Rm8zUW80aXRHVnpEVzV4?oc=5" target="_blank" rel="noopener noreferrer">Family Office Tracker: Here’s The List Of 200+ Investors Betting Big On Startups</a></h3>
+          <div class="sub">
+            Inc42<span class="dot">·</span>15 Apr
+          </div>
+        </div>
+        
+      </div>
+      <div class="section">
+        <div class="label">Signal</div>
+        <p>Family Office Tracker: Here’s The List Of 200+ Investors Betting Big On Startups Inc42</p>
+      </div>
+      <div class="section">
+        <div class="label">FCIM Solution</div>
+        <p>UAE Foundation owning a CMA private fund. Three-level control, UBO privacy, onshore UAE governance. Directly analogous to the EUR 100M+ CIS real-estate restructure FCIM executed last year.</p>
+      </div>
+      <div class="meta-row">
+        <strong>Medium</strong> signal strength <span class="sep">/</span> 30-day window
+      </div>
+      <div class="section">
+        <div class="label">Warm Path</div>
+        <p>Region indeterminate. Identify the subject’s origin from the source article, then route to the relevant FCIM colleague.</p>
+      </div>
+      
+      <div class="first-step">
+        <div class="label">First Step</div>
+        <p>Open the source article, identify the decision-maker, then approach via the FCIM colleague best matched to their nationality/sector. Tap below to copy a draft prompt with the context.</p>
+        <button class="draft-btn" data-prompt="Draft Yehya Abdelbaki&#039;s FCIM outreach based on this live news signal.
+
+Headline: Family Office Tracker: Here’s The List Of 200+ Investors Betting Big On Startups
+Source: Inc42
+Date: 2026-04-15
+Link: https://news.google.com/rss/articles/CBMilAFBVV95cUxQWkszMjB6SW1VZEJNT09pRHdiUTcxNndNYTRqQ0NBXzRUb0N4ZVk4V1F4eG03LWhjblo1R1BVOVRwRUVqOUdNcnRjYkkwdmJ3MkQ2RFpNMFBHazRPNXBld3ItTHBLRHk2dWxlbDZyVUVlaHluX0psR2drNmZLeW4wSV8wQ0x4Rm8zUW80aXRHVnpEVzV4?oc=5
+Context: Family Office Tracker: Here’s The List Of 200+ Investors Betting Big On Startups Inc42
+
+Matched FCIM service: Foundation + Private Fund
+Region: (not detected)
+Suggested lead: (route by context)
+
+Write a &lt;200 word email in Yehya&#039;s voice to the decision-maker at the company in the headline. Reference specifics from the news. Mention the FCIM colleague naturally only where it adds credibility. End with the full Yehya signature block (Yehya Abdelbaki / Relationship Manager / Fundament Capital Investment Management / yehya.abdelbaki@fundamentcapital.ae | +971 4 834 8385).">Copy draft prompt</button>
+      </div>
+      <a class="source-link" href="https://news.google.com/rss/articles/CBMilAFBVV95cUxQWkszMjB6SW1VZEJNT09pRHdiUTcxNndNYTRqQ0NBXzRUb0N4ZVk4V1F4eG03LWhjblo1R1BVOVRwRUVqOUdNcnRjYkkwdmJ3MkQ2RFpNMFBHazRPNXBld3ItTHBLRHk2dWxlbDZyVUVlaHluX0psR2drNmZLeW4wSV8wQ0x4Rm8zUW80aXRHVnpEVzV4?oc=5" target="_blank" rel="noopener noreferrer">Read the source article <span class="arrow">›</span></a>
+    </article>
+  
+    <article class="prospect  " data-region="">
+      <div class="service-tag">Foundation + Private Fund</div>
+      <div class="head-row">
+        <div class="head-main">
+          <h3><a href="https://news.google.com/rss/articles/CBMi1wFBVV95cUxNZzNtbHN2cExuYWoyNmtwdTFDNDc2ZXZjc1hObGtVbkRNTm5KcVVPelpablpBX3oydG80NzVieURPd3Nuc0ZOTkU5em9zcnZEUnVrdFhBRVpJbHNZYkplWmJnLW1HXzhmS2xraFZkSTNLbmVDLVN0c2VWVmx4TEhNZ25GVWVPTUktMTVhMmszSWFYb09RSEUtams1VEJJV1ZCWTl2V1B5X3A3aWlDMmwxcnRoeW5Cd2Nlc0loc3pLazNIbjQzM1dQZXhYM0JUanNxWHFzR05sOA?oc=5" target="_blank" rel="noopener noreferrer">Canoe Intelligence Engages With UAE Family Office MZI Holding on AI-Driven Back-Office Tools</a></h3>
+          <div class="sub">
+            TipRanks<span class="dot">·</span>9 Apr
+          </div>
+        </div>
+        
+      </div>
+      <div class="section">
+        <div class="label">Signal</div>
+        <p>Canoe Intelligence Engages With UAE Family Office MZI Holding on AI-Driven Back-Office Tools TipRanks</p>
+      </div>
+      <div class="section">
+        <div class="label">FCIM Solution</div>
+        <p>UAE Foundation owning a CMA private fund. Three-level control, UBO privacy, onshore UAE governance. Directly analogous to the EUR 100M+ CIS real-estate restructure FCIM executed last year.</p>
+      </div>
+      <div class="meta-row">
+        <strong>Medium</strong> signal strength <span class="sep">/</span> 30-day window
+      </div>
+      <div class="section">
+        <div class="label">Warm Path</div>
+        <p>Region indeterminate. Identify the subject’s origin from the source article, then route to the relevant FCIM colleague.</p>
+      </div>
+      
+      <div class="first-step">
+        <div class="label">First Step</div>
+        <p>Open the source article, identify the decision-maker, then approach via the FCIM colleague best matched to their nationality/sector. Tap below to copy a draft prompt with the context.</p>
+        <button class="draft-btn" data-prompt="Draft Yehya Abdelbaki&#039;s FCIM outreach based on this live news signal.
+
+Headline: Canoe Intelligence Engages With UAE Family Office MZI Holding on AI-Driven Back-Office Tools
+Source: TipRanks
+Date: 2026-04-09
+Link: https://news.google.com/rss/articles/CBMi1wFBVV95cUxNZzNtbHN2cExuYWoyNmtwdTFDNDc2ZXZjc1hObGtVbkRNTm5KcVVPelpablpBX3oydG80NzVieURPd3Nuc0ZOTkU5em9zcnZEUnVrdFhBRVpJbHNZYkplWmJnLW1HXzhmS2xraFZkSTNLbmVDLVN0c2VWVmx4TEhNZ25GVWVPTUktMTVhMmszSWFYb09RSEUtams1VEJJV1ZCWTl2V1B5X3A3aWlDMmwxcnRoeW5Cd2Nlc0loc3pLazNIbjQzM1dQZXhYM0JUanNxWHFzR05sOA?oc=5
+Context: Canoe Intelligence Engages With UAE Family Office MZI Holding on AI-Driven Back-Office Tools TipRanks
+
+Matched FCIM service: Foundation + Private Fund
+Region: (not detected)
+Suggested lead: (route by context)
+
+Write a &lt;200 word email in Yehya&#039;s voice to the decision-maker at the company in the headline. Reference specifics from the news. Mention the FCIM colleague naturally only where it adds credibility. End with the full Yehya signature block (Yehya Abdelbaki / Relationship Manager / Fundament Capital Investment Management / yehya.abdelbaki@fundamentcapital.ae | +971 4 834 8385).">Copy draft prompt</button>
+      </div>
+      <a class="source-link" href="https://news.google.com/rss/articles/CBMi1wFBVV95cUxNZzNtbHN2cExuYWoyNmtwdTFDNDc2ZXZjc1hObGtVbkRNTm5KcVVPelpablpBX3oydG80NzVieURPd3Nuc0ZOTkU5em9zcnZEUnVrdFhBRVpJbHNZYkplWmJnLW1HXzhmS2xraFZkSTNLbmVDLVN0c2VWVmx4TEhNZ25GVWVPTUktMTVhMmszSWFYb09RSEUtams1VEJJV1ZCWTl2V1B5X3A3aWlDMmwxcnRoeW5Cd2Nlc0loc3pLazNIbjQzM1dQZXhYM0JUanNxWHFzR05sOA?oc=5" target="_blank" rel="noopener noreferrer">Read the source article <span class="arrow">›</span></a>
+    </article>
+  </div>
+    </section>
+    <section class="service-section" data-service="IB &amp; Advisory">
+      <div class="service-header">
+        <div class="left">
+          <h2>IB &amp; Advisory</h2>
+          <p>Tim Almashat-led. ECM, DCM, M&amp;A in the USD 50-150M band.</p>
+        </div>
+        <div class="right-meta">3 signals</div>
+      </div>
+      <div class="items">
+    <article class="prospect  " data-region="">
+      <div class="service-tag">IB &amp; Advisory</div>
+      <div class="head-row">
+        <div class="head-main">
+          <h3><a href="https://news.google.com/rss/articles/CBMizgFBVV95cUxNNzJaTlZyU0JndFRlNjI1TlVEUGRoTmRsS2paR1NId3YzZ1FibnpxMDR1Qk84NVZWT1BQUjhUNjBzTUFEN1pJd0pObzgxNlhDWkt5Tm53QVBwWWNFaVJGelhHQ0U2YWduY3M4MXJDVHMteDltTGtfOFAyMnpob3N3UnRmOHJpUTl1XzA3UUEtTmQ3S2JXTkFlTTF0OHJqd0xVdm1zWjZFTFhXbGg5S0xwOUdlc1NUZEowcFN5Qmk3aDBNekN5SXN1c2dlcXZGQQ?oc=5" target="_blank" rel="noopener noreferrer">Dubai Investments to decide on DIP IPO by May 15, plans three more listings</a></h3>
+          <div class="sub">
+            ZAWYA<span class="dot">·</span>7h ago
+          </div>
+        </div>
+        
+      </div>
+      <div class="section">
+        <div class="label">Signal</div>
+        <p>Dubai Investments to decide on DIP IPO by May 15, plans three more listings ZAWYA</p>
+      </div>
+      <div class="section">
+        <div class="label">FCIM Solution</div>
+        <p>Tim Almashat-led IB desk. ECM, DCM, M&amp;A in the USD 50-150M band with deep GCC family office sell-side coverage. Co-origination for regional transactions.</p>
+      </div>
+      <div class="meta-row">
+        <strong>Medium</strong> signal strength <span class="sep">/</span> Act this week
+      </div>
+      <div class="section">
+        <div class="label">Warm Path</div>
+        <p>Region indeterminate. Identify the subject’s origin from the source article, then route to the relevant FCIM colleague.</p>
+      </div>
+      
+      <div class="first-step">
+        <div class="label">First Step</div>
+        <p>Open the source article, identify the decision-maker, then approach via the FCIM colleague best matched to their nationality/sector. Tap below to copy a draft prompt with the context.</p>
+        <button class="draft-btn" data-prompt="Draft Yehya Abdelbaki&#039;s FCIM outreach based on this live news signal.
+
+Headline: Dubai Investments to decide on DIP IPO by May 15, plans three more listings
+Source: ZAWYA
+Date: 2026-04-24
+Link: https://news.google.com/rss/articles/CBMizgFBVV95cUxNNzJaTlZyU0JndFRlNjI1TlVEUGRoTmRsS2paR1NId3YzZ1FibnpxMDR1Qk84NVZWT1BQUjhUNjBzTUFEN1pJd0pObzgxNlhDWkt5Tm53QVBwWWNFaVJGelhHQ0U2YWduY3M4MXJDVHMteDltTGtfOFAyMnpob3N3UnRmOHJpUTl1XzA3UUEtTmQ3S2JXTkFlTTF0OHJqd0xVdm1zWjZFTFhXbGg5S0xwOUdlc1NUZEowcFN5Qmk3aDBNekN5SXN1c2dlcXZGQQ?oc=5
+Context: Dubai Investments to decide on DIP IPO by May 15, plans three more listings ZAWYA
+
+Matched FCIM service: IB &amp; Advisory
+Region: (not detected)
+Suggested lead: (route by context)
+
+Write a &lt;200 word email in Yehya&#039;s voice to the decision-maker at the company in the headline. Reference specifics from the news. Mention the FCIM colleague naturally only where it adds credibility. End with the full Yehya signature block (Yehya Abdelbaki / Relationship Manager / Fundament Capital Investment Management / yehya.abdelbaki@fundamentcapital.ae | +971 4 834 8385).">Copy draft prompt</button>
+      </div>
+      <a class="source-link" href="https://news.google.com/rss/articles/CBMizgFBVV95cUxNNzJaTlZyU0JndFRlNjI1TlVEUGRoTmRsS2paR1NId3YzZ1FibnpxMDR1Qk84NVZWT1BQUjhUNjBzTUFEN1pJd0pObzgxNlhDWkt5Tm53QVBwWWNFaVJGelhHQ0U2YWduY3M4MXJDVHMteDltTGtfOFAyMnpob3N3UnRmOHJpUTl1XzA3UUEtTmQ3S2JXTkFlTTF0OHJqd0xVdm1zWjZFTFhXbGg5S0xwOUdlc1NUZEowcFN5Qmk3aDBNekN5SXN1c2dlcXZGQQ?oc=5" target="_blank" rel="noopener noreferrer">Read the source article <span class="arrow">›</span></a>
+    </article>
+  
+    <article class="prospect  " data-region="">
+      <div class="service-tag">IB &amp; Advisory</div>
+      <div class="head-row">
+        <div class="head-main">
+          <h3><a href="https://news.google.com/rss/articles/CBMiygFBVV95cUxNS1B2Z3gzdE5mVGVMS0VEVks1TlJmR1JidVJXT2ZZTGt6Zk0wWmIzMy10V1Nlb2pUaGRBNmhLTzkwMDkwMVdMOFc2RkctUVFtNTQ4Mm1XU0gwMkI4cmhxZ3I2RTYyOW5VYVRBdWpXUjd4ZVZSM2JFUDV5V2E0MXBnTHYtUEdielpNYlFvcWRmNU5YdmNhbTdjSGgzWnRuSnhRalpmVmFCMFpUbmV0WjlaeDc1Z25nVVZmY21UeG5QLUhJYlpISjJQZ1Bn?oc=5" target="_blank" rel="noopener noreferrer">UAE firm steers steady course as regional conflict tests IPO activity</a></h3>
+          <div class="sub">
+            IFLR<span class="dot">·</span>2d ago
+          </div>
+        </div>
+        
+      </div>
+      <div class="section">
+        <div class="label">Signal</div>
+        <p>UAE firm steers steady course as regional conflict tests IPO activity IFLR</p>
+      </div>
+      <div class="section">
+        <div class="label">FCIM Solution</div>
+        <p>Tim Almashat-led IB desk. ECM, DCM, M&amp;A in the USD 50-150M band with deep GCC family office sell-side coverage. Co-origination for regional transactions.</p>
+      </div>
+      <div class="meta-row">
+        <strong>Medium</strong> signal strength <span class="sep">/</span> Act this week
+      </div>
+      <div class="section">
+        <div class="label">Warm Path</div>
+        <p>Region indeterminate. Identify the subject’s origin from the source article, then route to the relevant FCIM colleague.</p>
+      </div>
+      
+      <div class="first-step">
+        <div class="label">First Step</div>
+        <p>Open the source article, identify the decision-maker, then approach via the FCIM colleague best matched to their nationality/sector. Tap below to copy a draft prompt with the context.</p>
+        <button class="draft-btn" data-prompt="Draft Yehya Abdelbaki&#039;s FCIM outreach based on this live news signal.
+
+Headline: UAE firm steers steady course as regional conflict tests IPO activity
+Source: IFLR
+Date: 2026-04-22
+Link: https://news.google.com/rss/articles/CBMiygFBVV95cUxNS1B2Z3gzdE5mVGVMS0VEVks1TlJmR1JidVJXT2ZZTGt6Zk0wWmIzMy10V1Nlb2pUaGRBNmhLTzkwMDkwMVdMOFc2RkctUVFtNTQ4Mm1XU0gwMkI4cmhxZ3I2RTYyOW5VYVRBdWpXUjd4ZVZSM2JFUDV5V2E0MXBnTHYtUEdielpNYlFvcWRmNU5YdmNhbTdjSGgzWnRuSnhRalpmVmFCMFpUbmV0WjlaeDc1Z25nVVZmY21UeG5QLUhJYlpISjJQZ1Bn?oc=5
+Context: UAE firm steers steady course as regional conflict tests IPO activity IFLR
+
+Matched FCIM service: IB &amp; Advisory
+Region: (not detected)
+Suggested lead: (route by context)
+
+Write a &lt;200 word email in Yehya&#039;s voice to the decision-maker at the company in the headline. Reference specifics from the news. Mention the FCIM colleague naturally only where it adds credibility. End with the full Yehya signature block (Yehya Abdelbaki / Relationship Manager / Fundament Capital Investment Management / yehya.abdelbaki@fundamentcapital.ae | +971 4 834 8385).">Copy draft prompt</button>
+      </div>
+      <a class="source-link" href="https://news.google.com/rss/articles/CBMiygFBVV95cUxNS1B2Z3gzdE5mVGVMS0VEVks1TlJmR1JidVJXT2ZZTGt6Zk0wWmIzMy10V1Nlb2pUaGRBNmhLTzkwMDkwMVdMOFc2RkctUVFtNTQ4Mm1XU0gwMkI4cmhxZ3I2RTYyOW5VYVRBdWpXUjd4ZVZSM2JFUDV5V2E0MXBnTHYtUEdielpNYlFvcWRmNU5YdmNhbTdjSGgzWnRuSnhRalpmVmFCMFpUbmV0WjlaeDc1Z25nVVZmY21UeG5QLUhJYlpISjJQZ1Bn?oc=5" target="_blank" rel="noopener noreferrer">Read the source article <span class="arrow">›</span></a>
+    </article>
+  
+    <article class="prospect  " data-region="">
+      <div class="service-tag">IB &amp; Advisory</div>
+      <div class="head-row">
+        <div class="head-main">
+          <h3><a href="https://news.google.com/rss/articles/CBMingFBVV95cUxQd291YllXR25yVE9CRUVJUkQwTUNTOEl5c0IxMXIwcTgxZzFkZThnaW9FbUpkbUY4VGNaaTVVVE5HQmRYWnc1ZUhJQ1lyYUZfbVYteVM1bEVIcHAzZDJQTkZOX0RaTlZoaHo2WjluWlpGWE9YMDA3RUJCV2pLYVE0QkJucG80NDZlSUJqNmsyMmM3dU83S0lfRjVBTVBDUdIBpgFBVV95cUxNbDNzOTBxYi1SSzlDN0FqVG5sQV9rUTdvWmk3anNVaU9xbURGRnRCR3NldFYyaFRFLVJMSkk0bk1VS3RUN0ZXbFFxLVlNdTBkQUp3S25fTktxME9WaDluSi0zbmJETVRubEp2TlFqUmpBc3gteFpUdkNVWENaX1hiSG1ESjBUMjdIeVJJYjNZT24zMHJVUmM1VUlrUzNtUG5hSTNQUlB3?oc=5" target="_blank" rel="noopener noreferrer">Dubai’s Al Ramz Corp announces IPO for two new funds</a></h3>
+          <div class="sub">
+            Khaleej Times<span class="dot">·</span>4d ago
+          </div>
+        </div>
+        
+      </div>
+      <div class="section">
+        <div class="label">Signal</div>
+        <p>Dubai’s Al Ramz Corp announces IPO for two new funds Khaleej Times</p>
+      </div>
+      <div class="section">
+        <div class="label">FCIM Solution</div>
+        <p>Tim Almashat-led IB desk. ECM, DCM, M&amp;A in the USD 50-150M band with deep GCC family office sell-side coverage. Co-origination for regional transactions.</p>
+      </div>
+      <div class="meta-row">
+        <strong>Medium</strong> signal strength <span class="sep">/</span> Act this week
+      </div>
+      <div class="section">
+        <div class="label">Warm Path</div>
+        <p>Region indeterminate. Identify the subject’s origin from the source article, then route to the relevant FCIM colleague.</p>
+      </div>
+      
+      <div class="first-step">
+        <div class="label">First Step</div>
+        <p>Open the source article, identify the decision-maker, then approach via the FCIM colleague best matched to their nationality/sector. Tap below to copy a draft prompt with the context.</p>
+        <button class="draft-btn" data-prompt="Draft Yehya Abdelbaki&#039;s FCIM outreach based on this live news signal.
+
+Headline: Dubai’s Al Ramz Corp announces IPO for two new funds
+Source: Khaleej Times
+Date: 2026-04-20
+Link: https://news.google.com/rss/articles/CBMingFBVV95cUxQd291YllXR25yVE9CRUVJUkQwTUNTOEl5c0IxMXIwcTgxZzFkZThnaW9FbUpkbUY4VGNaaTVVVE5HQmRYWnc1ZUhJQ1lyYUZfbVYteVM1bEVIcHAzZDJQTkZOX0RaTlZoaHo2WjluWlpGWE9YMDA3RUJCV2pLYVE0QkJucG80NDZlSUJqNmsyMmM3dU83S0lfRjVBTVBDUdIBpgFBVV95cUxNbDNzOTBxYi1SSzlDN0FqVG5sQV9rUTdvWmk3anNVaU9xbURGRnRCR3NldFYyaFRFLVJMSkk0bk1VS3RUN0ZXbFFxLVlNdTBkQUp3S25fTktxME9WaDluSi0zbmJETVRubEp2TlFqUmpBc3gteFpUdkNVWENaX1hiSG1ESjBUMjdIeVJJYjNZT24zMHJVUmM1VUlrUzNtUG5hSTNQUlB3?oc=5
+Context: Dubai’s Al Ramz Corp announces IPO for two new funds Khaleej Times
+
+Matched FCIM service: IB &amp; Advisory
+Region: (not detected)
+Suggested lead: (route by context)
+
+Write a &lt;200 word email in Yehya&#039;s voice to the decision-maker at the company in the headline. Reference specifics from the news. Mention the FCIM colleague naturally only where it adds credibility. End with the full Yehya signature block (Yehya Abdelbaki / Relationship Manager / Fundament Capital Investment Management / yehya.abdelbaki@fundamentcapital.ae | +971 4 834 8385).">Copy draft prompt</button>
+      </div>
+      <a class="source-link" href="https://news.google.com/rss/articles/CBMingFBVV95cUxQd291YllXR25yVE9CRUVJUkQwTUNTOEl5c0IxMXIwcTgxZzFkZThnaW9FbUpkbUY4VGNaaTVVVE5HQmRYWnc1ZUhJQ1lyYUZfbVYteVM1bEVIcHAzZDJQTkZOX0RaTlZoaHo2WjluWlpGWE9YMDA3RUJCV2pLYVE0QkJucG80NDZlSUJqNmsyMmM3dU83S0lfRjVBTVBDUdIBpgFBVV95cUxNbDNzOTBxYi1SSzlDN0FqVG5sQV9rUTdvWmk3anNVaU9xbURGRnRCR3NldFYyaFRFLVJMSkk0bk1VS3RUN0ZXbFFxLVlNdTBkQUp3S25fTktxME9WaDluSi0zbmJETVRubEp2TlFqUmpBc3gteFpUdkNVWENaX1hiSG1ESjBUMjdIeVJJYjNZT24zMHJVUmM1VUlrUzNtUG5hSTNQUlB3?oc=5" target="_blank" rel="noopener noreferrer">Read the source article <span class="arrow">›</span></a>
+    </article>
+  </div>
+    </section>
+      <section class="service-section">
+        <div class="service-header">
+          <div class="left">
+            <h2>Market context</h2>
+            <p>General Dubai finance news not matched to a specific FCIM service.</p>
+          </div>
+          <div class="right-meta">8 items</div>
+        </div>
+        <div class="items">
+    <article class="prospect  " data-region="">
+      <div class="service-tag">Market context</div>
+      <div class="head-row">
+        <div class="head-main">
+          <h3><a href="https://news.google.com/rss/articles/CBMimwFBVV95cUxPVGdqZUNXWWc3SzgzNGROdnQzekZkZjhLcmNxNEtxdXQzbmFjR3hoNHI5XzBCWUNybjlVVzUxcnB0MTdFQVI0c1YxclI1OWxLaXVMTG5hdTdqQ2FnWVQ4UWtMM2lrMDZKUTV4ZkF3MmtDRkFQZDQ4SU5acVBhVUFoWnZZdUtSOWVkN3BRZ1BzeUZLQmZ4amVvOVF5Y9IBrgFBVV95cUxQZVRtTW5GdTg4UGJtY0tFdVItQjdub2VoSnFsTU1veXE5QVJFX0ZNVHJnX0pCNTF5UnNmM3NacmZfQ2FPWlZaOVR6MzBoUV9kZlJRZ05CWUdJanBGV2U0RkU4MWx4cjJ1cmk3bWJzdUs5TTRXUnJqSWR2aUVzcHJxYVBabkhiZnBKbTJ1YXBhNmEyc3dSNFFJWkRicEVnMm1XZkQ2bURiaW9jRk1FNlE?oc=5" target="_blank" rel="noopener noreferrer">Dubai Taxi Company adds 600 vehicles to fleet</a></h3>
+          <div class="sub">
+            Gulf News<span class="dot">·</span>1d ago
+          </div>
+        </div>
+        
+      </div>
+      <div class="section">
+        <div class="label">Signal</div>
+        <p>Dubai Taxi Company adds 600 vehicles to fleet Gulf News</p>
+      </div>
+      <div class="section">
+        <div class="label">FCIM Solution</div>
+        <p>Service match indeterminate — open the article to assess which FCIM product fits.</p>
+      </div>
+      <div class="meta-row">
+        <strong>Low</strong> signal strength <span class="sep">/</span> Act this week
+      </div>
+      <div class="section">
+        <div class="label">Warm Path</div>
+        <p>Region indeterminate. Identify the subject’s origin from the source article, then route to the relevant FCIM colleague.</p>
+      </div>
+      
+      <div class="first-step">
+        <div class="label">First Step</div>
+        <p>Open the source article, identify the decision-maker, then approach via the FCIM colleague best matched to their nationality/sector. Tap below to copy a draft prompt with the context.</p>
+        <button class="draft-btn" data-prompt="Draft Yehya Abdelbaki&#039;s FCIM outreach based on this live news signal.
+
+Headline: Dubai Taxi Company adds 600 vehicles to fleet
+Source: Gulf News
+Date: 2026-04-23
+Link: https://news.google.com/rss/articles/CBMimwFBVV95cUxPVGdqZUNXWWc3SzgzNGROdnQzekZkZjhLcmNxNEtxdXQzbmFjR3hoNHI5XzBCWUNybjlVVzUxcnB0MTdFQVI0c1YxclI1OWxLaXVMTG5hdTdqQ2FnWVQ4UWtMM2lrMDZKUTV4ZkF3MmtDRkFQZDQ4SU5acVBhVUFoWnZZdUtSOWVkN3BRZ1BzeUZLQmZ4amVvOVF5Y9IBrgFBVV95cUxQZVRtTW5GdTg4UGJtY0tFdVItQjdub2VoSnFsTU1veXE5QVJFX0ZNVHJnX0pCNTF5UnNmM3NacmZfQ2FPWlZaOVR6MzBoUV9kZlJRZ05CWUdJanBGV2U0RkU4MWx4cjJ1cmk3bWJzdUs5TTRXUnJqSWR2aUVzcHJxYVBabkhiZnBKbTJ1YXBhNmEyc3dSNFFJWkRicEVnMm1XZkQ2bURiaW9jRk1FNlE?oc=5
+Context: Dubai Taxi Company adds 600 vehicles to fleet Gulf News
+
+Matched FCIM service: (pick best fit)
+Region: (not detected)
+Suggested lead: (route by context)
+
+Write a &lt;200 word email in Yehya&#039;s voice to the decision-maker at the company in the headline. Reference specifics from the news. Mention the FCIM colleague naturally only where it adds credibility. End with the full Yehya signature block (Yehya Abdelbaki / Relationship Manager / Fundament Capital Investment Management / yehya.abdelbaki@fundamentcapital.ae | +971 4 834 8385).">Copy draft prompt</button>
+      </div>
+      <a class="source-link" href="https://news.google.com/rss/articles/CBMimwFBVV95cUxPVGdqZUNXWWc3SzgzNGROdnQzekZkZjhLcmNxNEtxdXQzbmFjR3hoNHI5XzBCWUNybjlVVzUxcnB0MTdFQVI0c1YxclI1OWxLaXVMTG5hdTdqQ2FnWVQ4UWtMM2lrMDZKUTV4ZkF3MmtDRkFQZDQ4SU5acVBhVUFoWnZZdUtSOWVkN3BRZ1BzeUZLQmZ4amVvOVF5Y9IBrgFBVV95cUxQZVRtTW5GdTg4UGJtY0tFdVItQjdub2VoSnFsTU1veXE5QVJFX0ZNVHJnX0pCNTF5UnNmM3NacmZfQ2FPWlZaOVR6MzBoUV9kZlJRZ05CWUdJanBGV2U0RkU4MWx4cjJ1cmk3bWJzdUs5TTRXUnJqSWR2aUVzcHJxYVBabkhiZnBKbTJ1YXBhNmEyc3dSNFFJWkRicEVnMm1XZkQ2bURiaW9jRk1FNlE?oc=5" target="_blank" rel="noopener noreferrer">Read the source article <span class="arrow">›</span></a>
+    </article>
+  
+    <article class="prospect  " data-region="">
+      <div class="service-tag">Market context</div>
+      <div class="head-row">
+        <div class="head-main">
+          <h3><a href="https://news.google.com/rss/articles/CBMirAFBVV95cUxQVWVibEN1YUhBZy1YTU9wS0RzV0oyOFF0akg1ZUpoR2duaUpYVkhSd3AxQkxqOUNYOG1UVVhhNU5BMDhLZ2ZuUjhGek1CeWctLUY1dFlpX2VkZFFad3luclFNQlNTT1VnWG9XLV9MbmFnYXg3aE11TDZad2Jpal9EaExPU2Z2WFNTVXdmd3QzSnV1SERoWE81SjlkWWdYQ0wyVkdoUGVlUzljYmpf?oc=5" target="_blank" rel="noopener noreferrer">Iran says seizes two container ships attempting to exit Gulf</a></h3>
+          <div class="sub">
+            Dubai Eye 103.8<span class="dot">·</span>1d ago
+          </div>
+        </div>
+        
+      </div>
+      <div class="section">
+        <div class="label">Signal</div>
+        <p>Iran says seizes two container ships attempting to exit Gulf Dubai Eye 103.8</p>
+      </div>
+      <div class="section">
+        <div class="label">FCIM Solution</div>
+        <p>Service match indeterminate — open the article to assess which FCIM product fits.</p>
+      </div>
+      <div class="meta-row">
+        <strong>Low</strong> signal strength <span class="sep">/</span> Act this week
+      </div>
+      <div class="section">
+        <div class="label">Warm Path</div>
+        <p>Region indeterminate. Identify the subject’s origin from the source article, then route to the relevant FCIM colleague.</p>
+      </div>
+      
+      <div class="first-step">
+        <div class="label">First Step</div>
+        <p>Open the source article, identify the decision-maker, then approach via the FCIM colleague best matched to their nationality/sector. Tap below to copy a draft prompt with the context.</p>
+        <button class="draft-btn" data-prompt="Draft Yehya Abdelbaki&#039;s FCIM outreach based on this live news signal.
+
+Headline: Iran says seizes two container ships attempting to exit Gulf
+Source: Dubai Eye 103.8
+Date: 2026-04-22
+Link: https://news.google.com/rss/articles/CBMirAFBVV95cUxQVWVibEN1YUhBZy1YTU9wS0RzV0oyOFF0akg1ZUpoR2duaUpYVkhSd3AxQkxqOUNYOG1UVVhhNU5BMDhLZ2ZuUjhGek1CeWctLUY1dFlpX2VkZFFad3luclFNQlNTT1VnWG9XLV9MbmFnYXg3aE11TDZad2Jpal9EaExPU2Z2WFNTVXdmd3QzSnV1SERoWE81SjlkWWdYQ0wyVkdoUGVlUzljYmpf?oc=5
+Context: Iran says seizes two container ships attempting to exit Gulf Dubai Eye 103.8
+
+Matched FCIM service: (pick best fit)
+Region: (not detected)
+Suggested lead: (route by context)
+
+Write a &lt;200 word email in Yehya&#039;s voice to the decision-maker at the company in the headline. Reference specifics from the news. Mention the FCIM colleague naturally only where it adds credibility. End with the full Yehya signature block (Yehya Abdelbaki / Relationship Manager / Fundament Capital Investment Management / yehya.abdelbaki@fundamentcapital.ae | +971 4 834 8385).">Copy draft prompt</button>
+      </div>
+      <a class="source-link" href="https://news.google.com/rss/articles/CBMirAFBVV95cUxQVWVibEN1YUhBZy1YTU9wS0RzV0oyOFF0akg1ZUpoR2duaUpYVkhSd3AxQkxqOUNYOG1UVVhhNU5BMDhLZ2ZuUjhGek1CeWctLUY1dFlpX2VkZFFad3luclFNQlNTT1VnWG9XLV9MbmFnYXg3aE11TDZad2Jpal9EaExPU2Z2WFNTVXdmd3QzSnV1SERoWE81SjlkWWdYQ0wyVkdoUGVlUzljYmpf?oc=5" target="_blank" rel="noopener noreferrer">Read the source article <span class="arrow">›</span></a>
+    </article>
+  
+    <article class="prospect  " data-region="">
+      <div class="service-tag">Market context</div>
+      <div class="head-row">
+        <div class="head-main">
+          <h3><a href="https://news.google.com/rss/articles/CBMi2AFBVV95cUxQR29nTFJfVGRkWHFScGp6TUZxbUk5MjZSZGJfNDV6VGZDekNwLTJfZkNod1RzYlZ2TUE0S1lVNzlGdjZDcTRIRWZ4RXFvYmRKT1dVRmFWWmZQUlJCb1UxelcxaU9neTZTN1A4VW85VWR4eDkybEJEM2RWQmxFSUk1T2pMNGZTWEhsVEs5WDkwYUM5Sm51MEY2Zlo2TnF0MlBxRlhXbm5qVVlTOWV5Mk1zYWtIWHdUbUU2WWtEZG5jZnEwWnJMQWxmODZlRExESURSVVhLZWtSdG8?oc=5" target="_blank" rel="noopener noreferrer">Radisson Blu Dubai Media City to close from April 30 ahead of brand exit in 2027</a></h3>
+          <div class="sub">
+            Arabian Business<span class="dot">·</span>4d ago
+          </div>
+        </div>
+        
+      </div>
+      <div class="section">
+        <div class="label">Signal</div>
+        <p>Radisson Blu Dubai Media City to close from April 30 ahead of brand exit in 2027 Arabian Business</p>
+      </div>
+      <div class="section">
+        <div class="label">FCIM Solution</div>
+        <p>Service match indeterminate — open the article to assess which FCIM product fits.</p>
+      </div>
+      <div class="meta-row">
+        <strong>Low</strong> signal strength <span class="sep">/</span> Act this week
+      </div>
+      <div class="section">
+        <div class="label">Warm Path</div>
+        <p>Region indeterminate. Identify the subject’s origin from the source article, then route to the relevant FCIM colleague.</p>
+      </div>
+      
+      <div class="first-step">
+        <div class="label">First Step</div>
+        <p>Open the source article, identify the decision-maker, then approach via the FCIM colleague best matched to their nationality/sector. Tap below to copy a draft prompt with the context.</p>
+        <button class="draft-btn" data-prompt="Draft Yehya Abdelbaki&#039;s FCIM outreach based on this live news signal.
+
+Headline: Radisson Blu Dubai Media City to close from April 30 ahead of brand exit in 2027
+Source: Arabian Business
+Date: 2026-04-20
+Link: https://news.google.com/rss/articles/CBMi2AFBVV95cUxQR29nTFJfVGRkWHFScGp6TUZxbUk5MjZSZGJfNDV6VGZDekNwLTJfZkNod1RzYlZ2TUE0S1lVNzlGdjZDcTRIRWZ4RXFvYmRKT1dVRmFWWmZQUlJCb1UxelcxaU9neTZTN1A4VW85VWR4eDkybEJEM2RWQmxFSUk1T2pMNGZTWEhsVEs5WDkwYUM5Sm51MEY2Zlo2TnF0MlBxRlhXbm5qVVlTOWV5Mk1zYWtIWHdUbUU2WWtEZG5jZnEwWnJMQWxmODZlRExESURSVVhLZWtSdG8?oc=5
+Context: Radisson Blu Dubai Media City to close from April 30 ahead of brand exit in 2027 Arabian Business
+
+Matched FCIM service: (pick best fit)
+Region: (not detected)
+Suggested lead: (route by context)
+
+Write a &lt;200 word email in Yehya&#039;s voice to the decision-maker at the company in the headline. Reference specifics from the news. Mention the FCIM colleague naturally only where it adds credibility. End with the full Yehya signature block (Yehya Abdelbaki / Relationship Manager / Fundament Capital Investment Management / yehya.abdelbaki@fundamentcapital.ae | +971 4 834 8385).">Copy draft prompt</button>
+      </div>
+      <a class="source-link" href="https://news.google.com/rss/articles/CBMi2AFBVV95cUxQR29nTFJfVGRkWHFScGp6TUZxbUk5MjZSZGJfNDV6VGZDekNwLTJfZkNod1RzYlZ2TUE0S1lVNzlGdjZDcTRIRWZ4RXFvYmRKT1dVRmFWWmZQUlJCb1UxelcxaU9neTZTN1A4VW85VWR4eDkybEJEM2RWQmxFSUk1T2pMNGZTWEhsVEs5WDkwYUM5Sm51MEY2Zlo2TnF0MlBxRlhXbm5qVVlTOWV5Mk1zYWtIWHdUbUU2WWtEZG5jZnEwWnJMQWxmODZlRExESURSVVhLZWtSdG8?oc=5" target="_blank" rel="noopener noreferrer">Read the source article <span class="arrow">›</span></a>
+    </article>
+  
+    <article class="prospect  " data-region="">
+      <div class="service-tag">Market context</div>
+      <div class="head-row">
+        <div class="head-main">
+          <h3><a href="https://news.google.com/rss/articles/CBMibEFVX3lxTE10cXJCQndHTUk2OWRMQVd2bG9oQS10YzFvTU1qaXkwTHpxMlpldU4xMWwxZXB5VVhZMFpMNEVOdDZEb2s2TEFpNDViU2tzakY3eUctTlZKdE55Tmg5YXBuV3FPVVhTdWFHeUxoQQ?oc=5" target="_blank" rel="noopener noreferrer">New entry rules for Europe are here and they could impact your next holiday</a></h3>
+          <div class="sub">
+            Time Out Dubai<span class="dot">·</span>14 Apr
+          </div>
+        </div>
+        
+      </div>
+      <div class="section">
+        <div class="label">Signal</div>
+        <p>New entry rules for Europe are here and they could impact your next holiday Time Out Dubai</p>
+      </div>
+      <div class="section">
+        <div class="label">FCIM Solution</div>
+        <p>Service match indeterminate — open the article to assess which FCIM product fits.</p>
+      </div>
+      <div class="meta-row">
+        <strong>Context</strong> signal strength <span class="sep">/</span> 30-day window
+      </div>
+      <div class="section">
+        <div class="label">Warm Path</div>
+        <p>Region indeterminate. Identify the subject’s origin from the source article, then route to the relevant FCIM colleague.</p>
+      </div>
+      
+      <div class="first-step">
+        <div class="label">First Step</div>
+        <p>Open the source article, identify the decision-maker, then approach via the FCIM colleague best matched to their nationality/sector. Tap below to copy a draft prompt with the context.</p>
+        <button class="draft-btn" data-prompt="Draft Yehya Abdelbaki&#039;s FCIM outreach based on this live news signal.
+
+Headline: New entry rules for Europe are here and they could impact your next holiday
+Source: Time Out Dubai
+Date: 2026-04-14
+Link: https://news.google.com/rss/articles/CBMibEFVX3lxTE10cXJCQndHTUk2OWRMQVd2bG9oQS10YzFvTU1qaXkwTHpxMlpldU4xMWwxZXB5VVhZMFpMNEVOdDZEb2s2TEFpNDViU2tzakY3eUctTlZKdE55Tmg5YXBuV3FPVVhTdWFHeUxoQQ?oc=5
+Context: New entry rules for Europe are here and they could impact your next holiday Time Out Dubai
+
+Matched FCIM service: (pick best fit)
+Region: (not detected)
+Suggested lead: (route by context)
+
+Write a &lt;200 word email in Yehya&#039;s voice to the decision-maker at the company in the headline. Reference specifics from the news. Mention the FCIM colleague naturally only where it adds credibility. End with the full Yehya signature block (Yehya Abdelbaki / Relationship Manager / Fundament Capital Investment Management / yehya.abdelbaki@fundamentcapital.ae | +971 4 834 8385).">Copy draft prompt</button>
+      </div>
+      <a class="source-link" href="https://news.google.com/rss/articles/CBMibEFVX3lxTE10cXJCQndHTUk2OWRMQVd2bG9oQS10YzFvTU1qaXkwTHpxMlpldU4xMWwxZXB5VVhZMFpMNEVOdDZEb2s2TEFpNDViU2tzakY3eUctTlZKdE55Tmg5YXBuV3FPVVhTdWFHeUxoQQ?oc=5" target="_blank" rel="noopener noreferrer">Read the source article <span class="arrow">›</span></a>
+    </article>
+  
+    <article class="prospect  " data-region="">
+      <div class="service-tag">Market context</div>
+      <div class="head-row">
+        <div class="head-main">
+          <h3><a href="https://news.google.com/rss/articles/CBMijAFBVV95cUxNbHlta3RVREt4UHl3MHZuMnRoYmMxRHhWU1BhQmF5YmFscE9QX1M0NXJlUDZxTmNrR2VydV9DR1BGeTYwbVhhbFQ4YUpacm1weHdIZTNKcnE3eFJWcmpaTWpSV1h1Y2p1TXEwMkV5Mk9udTlXWV95OW5NYTZMVkFwa3VGYWxCdGFJMkRycw?oc=5" target="_blank" rel="noopener noreferrer">DIFC posts record growth, net profit rises to Dhs1.48bn in 2025</a></h3>
+          <div class="sub">
+            Gulf Business<span class="dot">·</span>13 Apr
+          </div>
+        </div>
+        
+      </div>
+      <div class="section">
+        <div class="label">Signal</div>
+        <p>DIFC posts record growth, net profit rises to Dhs1.48bn in 2025 Gulf Business</p>
+      </div>
+      <div class="section">
+        <div class="label">FCIM Solution</div>
+        <p>Service match indeterminate — open the article to assess which FCIM product fits.</p>
+      </div>
+      <div class="meta-row">
+        <strong>Context</strong> signal strength <span class="sep">/</span> 30-day window
+      </div>
+      <div class="section">
+        <div class="label">Warm Path</div>
+        <p>Region indeterminate. Identify the subject’s origin from the source article, then route to the relevant FCIM colleague.</p>
+      </div>
+      
+      <div class="first-step">
+        <div class="label">First Step</div>
+        <p>Open the source article, identify the decision-maker, then approach via the FCIM colleague best matched to their nationality/sector. Tap below to copy a draft prompt with the context.</p>
+        <button class="draft-btn" data-prompt="Draft Yehya Abdelbaki&#039;s FCIM outreach based on this live news signal.
+
+Headline: DIFC posts record growth, net profit rises to Dhs1.48bn in 2025
+Source: Gulf Business
+Date: 2026-04-13
+Link: https://news.google.com/rss/articles/CBMijAFBVV95cUxNbHlta3RVREt4UHl3MHZuMnRoYmMxRHhWU1BhQmF5YmFscE9QX1M0NXJlUDZxTmNrR2VydV9DR1BGeTYwbVhhbFQ4YUpacm1weHdIZTNKcnE3eFJWcmpaTWpSV1h1Y2p1TXEwMkV5Mk9udTlXWV95OW5NYTZMVkFwa3VGYWxCdGFJMkRycw?oc=5
+Context: DIFC posts record growth, net profit rises to Dhs1.48bn in 2025 Gulf Business
+
+Matched FCIM service: (pick best fit)
+Region: (not detected)
+Suggested lead: (route by context)
+
+Write a &lt;200 word email in Yehya&#039;s voice to the decision-maker at the company in the headline. Reference specifics from the news. Mention the FCIM colleague naturally only where it adds credibility. End with the full Yehya signature block (Yehya Abdelbaki / Relationship Manager / Fundament Capital Investment Management / yehya.abdelbaki@fundamentcapital.ae | +971 4 834 8385).">Copy draft prompt</button>
+      </div>
+      <a class="source-link" href="https://news.google.com/rss/articles/CBMijAFBVV95cUxNbHlta3RVREt4UHl3MHZuMnRoYmMxRHhWU1BhQmF5YmFscE9QX1M0NXJlUDZxTmNrR2VydV9DR1BGeTYwbVhhbFQ4YUpacm1weHdIZTNKcnE3eFJWcmpaTWpSV1h1Y2p1TXEwMkV5Mk9udTlXWV95OW5NYTZMVkFwa3VGYWxCdGFJMkRycw?oc=5" target="_blank" rel="noopener noreferrer">Read the source article <span class="arrow">›</span></a>
+    </article>
+  
+    <article class="prospect  " data-region="">
+      <div class="service-tag">Market context</div>
+      <div class="head-row">
+        <div class="head-main">
+          <h3><a href="https://news.google.com/rss/articles/CBMihAFBVV95cUxQZ2ZCNmotOHFmN3pzMUItR1F6dFZPcEN5ZWF0NTZQT19CejNGNFcwSEpWMUpFM0pMb3o1ckJXRUtkanR6bGhDYUpaRDdCdWlFakRHaGpLTlgyV2RHTHZEUjVRSXRybWw3NEFQMVlrYTBmNEZuMFJRWUl2cy1rQjBRdlNacTA?oc=5" target="_blank" rel="noopener noreferrer">Geopolitical upheaval spurs family offices to open global branches</a></h3>
+          <div class="sub">
+            Financial Times<span class="dot">·</span>13 Apr
+          </div>
+        </div>
+        
+      </div>
+      <div class="section">
+        <div class="label">Signal</div>
+        <p>Geopolitical upheaval spurs family offices to open global branches Financial Times</p>
+      </div>
+      <div class="section">
+        <div class="label">FCIM Solution</div>
+        <p>Service match indeterminate — open the article to assess which FCIM product fits.</p>
+      </div>
+      <div class="meta-row">
+        <strong>Context</strong> signal strength <span class="sep">/</span> 30-day window
+      </div>
+      <div class="section">
+        <div class="label">Warm Path</div>
+        <p>Region indeterminate. Identify the subject’s origin from the source article, then route to the relevant FCIM colleague.</p>
+      </div>
+      
+      <div class="first-step">
+        <div class="label">First Step</div>
+        <p>Open the source article, identify the decision-maker, then approach via the FCIM colleague best matched to their nationality/sector. Tap below to copy a draft prompt with the context.</p>
+        <button class="draft-btn" data-prompt="Draft Yehya Abdelbaki&#039;s FCIM outreach based on this live news signal.
+
+Headline: Geopolitical upheaval spurs family offices to open global branches
+Source: Financial Times
+Date: 2026-04-13
+Link: https://news.google.com/rss/articles/CBMihAFBVV95cUxQZ2ZCNmotOHFmN3pzMUItR1F6dFZPcEN5ZWF0NTZQT19CejNGNFcwSEpWMUpFM0pMb3o1ckJXRUtkanR6bGhDYUpaRDdCdWlFakRHaGpLTlgyV2RHTHZEUjVRSXRybWw3NEFQMVlrYTBmNEZuMFJRWUl2cy1rQjBRdlNacTA?oc=5
+Context: Geopolitical upheaval spurs family offices to open global branches Financial Times
+
+Matched FCIM service: (pick best fit)
+Region: (not detected)
+Suggested lead: (route by context)
+
+Write a &lt;200 word email in Yehya&#039;s voice to the decision-maker at the company in the headline. Reference specifics from the news. Mention the FCIM colleague naturally only where it adds credibility. End with the full Yehya signature block (Yehya Abdelbaki / Relationship Manager / Fundament Capital Investment Management / yehya.abdelbaki@fundamentcapital.ae | +971 4 834 8385).">Copy draft prompt</button>
+      </div>
+      <a class="source-link" href="https://news.google.com/rss/articles/CBMihAFBVV95cUxQZ2ZCNmotOHFmN3pzMUItR1F6dFZPcEN5ZWF0NTZQT19CejNGNFcwSEpWMUpFM0pMb3o1ckJXRUtkanR6bGhDYUpaRDdCdWlFakRHaGpLTlgyV2RHTHZEUjVRSXRybWw3NEFQMVlrYTBmNEZuMFJRWUl2cy1rQjBRdlNacTA?oc=5" target="_blank" rel="noopener noreferrer">Read the source article <span class="arrow">›</span></a>
+    </article>
+  </div>
+      </section>
+    <section class="service-section" data-service="Portfolio Management">
+      <div class="service-header">
+        <div class="left">
+          <h2>Portfolio Management</h2>
+          <p>Five CMA-approved models. USD 1M minimum. Risk-matched mandates.</p>
+        </div>
+        <div class="right-meta">0 signals</div>
+      </div>
+      <div class="empty-note">No live signals for this service today.</div>
+    </section>
+    <section class="service-section" data-service="CMA Private Funds">
+      <div class="service-header">
+        <div class="left">
+          <h2>CMA Private Funds</h2>
+          <p>Five-day approval. UBO privacy. FCIM as manager and administrator.</p>
+        </div>
+        <div class="right-meta">0 signals</div>
+      </div>
+      <div class="empty-note">No live signals for this service today.</div>
+    </section>
+    <section class="service-section" data-service="Commodity Derivatives">
+      <div class="service-header">
+        <div class="left">
+          <h2>Commodity Derivatives</h2>
+          <p>SCA-licensed. Direct CME, ICE, LME, EEX, SGX. No clearing account required.</p>
+        </div>
+        <div class="right-meta">0 signals</div>
+      </div>
+      <div class="empty-note">No live signals for this service today.</div>
+    </section>
+    <section class="service-section" data-service="Fund Administration">
+      <div class="service-header">
+        <div class="left">
+          <h2>Fund Administration</h2>
+          <p>One of only five UAE-authorised fund administrators.</p>
+        </div>
+        <div class="right-meta">0 signals</div>
+      </div>
+      <div class="empty-note">No live signals for this service today.</div>
+    </section>
+    <section class="service-section" data-service="Distressed &amp; Special Situations">
+      <div class="service-header">
+        <div class="left">
+          <h2>Distressed &amp; Special Situations</h2>
+          <p>Tim Almashat leads. Regional distressed and co-investment.</p>
+        </div>
+        <div class="right-meta">0 signals</div>
+      </div>
+      <div class="empty-note">No live signals for this service today.</div>
+    </section></div>
+
+    <footer class="foot">
+      <span>Fundament Capital &middot; Business Bay &middot; Office 1511</span>
+      <span>SCA-Licensed &middot; USD 5.5B AUM</span>
+    </footer>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+  // Region filter — filter already-rendered cards client-side
+  let selectedRegion = null;
+  function applyRegionFilter() {
+    const prospects = document.querySelectorAll('.prospect');
+    const sections = document.querySelectorAll('.service-section');
+    prospects.forEach(p => {
+      const r = p.dataset.region || '';
+      const show = !selectedRegion || r === selectedRegion;
+      p.classList.toggle('hidden', !show);
+    });
+    sections.forEach(sec => {
+      const visible = sec.querySelectorAll('.prospect:not(.hidden)').length;
+      sec.classList.toggle('hidden', selectedRegion && visible === 0);
+    });
+    document.querySelectorAll('.region-chip').forEach(c => {
+      c.classList.toggle('on', c.dataset.region === selectedRegion);
+    });
+    document.getElementById('clear-region').classList.toggle('show', !!selectedRegion);
+  }
+  document.getElementById('region-chips').addEventListener('click', e => {
+    const btn = e.target.closest('.region-chip');
+    if (!btn || btn.disabled) return;
+    const r = btn.dataset.region;
+    selectedRegion = selectedRegion === r ? null : r;
+    applyRegionFilter();
+  });
+  document.getElementById('clear-region').addEventListener('click', () => {
+    selectedRegion = null;
+    applyRegionFilter();
+  });
+
+  // Draft prompt copy
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    clearTimeout(t._h);
+    t._h = setTimeout(() => t.classList.remove('show'), 3000);
+  }
+  document.addEventListener('click', async e => {
+    const btn = e.target.closest('.draft-btn');
+    if (!btn) return;
+    const prompt = btn.dataset.prompt;
+    try { await navigator.clipboard.writeText(prompt); }
+    catch (_) {
+      const ta = document.createElement('textarea');
+      ta.value = prompt; document.body.appendChild(ta);
+      ta.select(); document.execCommand('copy'); ta.remove();
+    }
+    btn.classList.add('copied');
+    btn.textContent = 'Copied — paste in Claude chat';
+    showToast('Draft prompt copied. Paste in Claude chat and Yehya\u2019s email comes back.');
+    setTimeout(() => { btn.classList.remove('copied'); btn.textContent = 'Copy draft prompt'; }, 4000);
+  });
+</script>
 </body>
 </html>
