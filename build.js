@@ -11,14 +11,14 @@ const QUALITY_THRESHOLD = 5;
 const MAX_HUNTER_CALLS_PER_RUN = 25;
 
 const QUERY_BUCKETS = [
-  { label: `Armenian Dubai`, body: { searchQuery: `Armenian Dubai`, profileScraperMode: `Short`, maxItems: 25 }, region: `Caucasus / CIS`, serviceHint: `Foundation + Private Fund` },
-  { label: `Russian Dubai`, body: { searchQuery: `Russian Dubai`, profileScraperMode: `Short`, maxItems: 25 }, region: `Russia / CIS`, serviceHint: `Foundation + Private Fund` },
-  { label: `Nigerian Dubai`, body: { searchQuery: `Nigerian Dubai`, profileScraperMode: `Short`, maxItems: 25 }, region: `Africa`, serviceHint: `Foundation + Private Fund` },
-  { label: `Lebanese Dubai`, body: { searchQuery: `Lebanese Dubai`, profileScraperMode: `Short`, maxItems: 25 }, region: `MENA / Levant`, serviceHint: `Foundation + Private Fund` },
-  { label: `Egyptian Dubai`, body: { searchQuery: `Egyptian Dubai`, profileScraperMode: `Short`, maxItems: 25 }, region: `Egypt`, serviceHint: `Foundation + Private Fund` },
-  { label: `Commodity Dubai`, body: { searchQuery: `commodity trader Dubai`, profileScraperMode: `Short`, maxItems: 25 }, region: null, serviceHint: `Commodity Derivatives` },
-  { label: `Family office Dubai`, body: { searchQuery: `family office Dubai`, profileScraperMode: `Short`, maxItems: 25 }, region: null, serviceHint: `Foundation + Private Fund` },
-  { label: `Wealth manager Dubai`, body: { searchQuery: `wealth manager Dubai`, profileScraperMode: `Short`, maxItems: 25 }, region: null, serviceHint: `Discretionary Portfolio Management` }
+  { label: `Armenian Dubai`, body: { searchQuery: `Armenian Dubai`, profileScraperMode: `Short ($4 per 1k)`, takePages: 1 }, region: `Caucasus / CIS`, serviceHint: `Foundation + Private Fund` },
+  { label: `Russian Dubai`, body: { searchQuery: `Russian Dubai`, profileScraperMode: `Short ($4 per 1k)`, takePages: 1 }, region: `Russia / CIS`, serviceHint: `Foundation + Private Fund` },
+  { label: `Nigerian Dubai`, body: { searchQuery: `Nigerian Dubai`, profileScraperMode: `Short ($4 per 1k)`, takePages: 1 }, region: `Africa`, serviceHint: `Foundation + Private Fund` },
+  { label: `Lebanese Dubai`, body: { searchQuery: `Lebanese Dubai`, profileScraperMode: `Short ($4 per 1k)`, takePages: 1 }, region: `MENA / Levant`, serviceHint: `Foundation + Private Fund` },
+  { label: `Egyptian Dubai`, body: { searchQuery: `Egyptian Dubai`, profileScraperMode: `Short ($4 per 1k)`, takePages: 1 }, region: `Egypt`, serviceHint: `Foundation + Private Fund` },
+  { label: `Commodity Dubai`, body: { searchQuery: `commodity trader Dubai`, profileScraperMode: `Short ($4 per 1k)`, takePages: 1 }, region: null, serviceHint: `Commodity Derivatives` },
+  { label: `Family office Dubai`, body: { searchQuery: `family office Dubai`, profileScraperMode: `Short ($4 per 1k)`, takePages: 1 }, region: null, serviceHint: `Foundation + Private Fund` },
+  { label: `Wealth manager Dubai`, body: { searchQuery: `wealth manager Dubai`, profileScraperMode: `Short ($4 per 1k)`, takePages: 1 }, region: null, serviceHint: `Discretionary Portfolio Management` }
 ];
 
 function pickTodaysQueries() {
@@ -62,9 +62,11 @@ async function runApifyActor(bucket) {
   const url = `https://api.apify.com/v2/acts/${APIFY_ACTOR}/run-sync-get-dataset-items?token=${APIFY_TOKEN}`;
   try {
     const res = await fetch(url, { method: `POST`, headers: { 'Content-Type': `application/json` }, body: JSON.stringify(bucket.body) });
-    if (!res.ok) { console.warn(`Apify ${bucket.label}: HTTP ${res.status}`); return []; }
+    if (!res.ok) { const t = await res.text(); console.warn(`Apify ${bucket.label}: HTTP ${res.status} - ${t.slice(0, 300)}`); return []; }
     const data = await res.json();
-    if (!Array.isArray(data)) return [];
+    if (!Array.isArray(data)) { console.warn(`Apify ${bucket.label}: not array`); return []; }
+    console.log(`Apify ${bucket.label}: returned ${data.length} items`);
+    if (data.length > 0) console.log(`  Sample keys: ${Object.keys(data[0]).slice(0, 20).join(`, `)}`);
     return data.map(p => ({ ...p, _qRegion: bucket.region, _qLabel: bucket.label, _qHint: bucket.serviceHint }));
   } catch (e) { console.warn(`Apify ${bucket.label} failed: ${e.message}`); return []; }
 }
