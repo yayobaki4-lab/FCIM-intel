@@ -6,7 +6,8 @@ if (!APIFY_TOKEN) {
   process.exit(1);
 }
 
-const APIFY_ACTOR = 'dev_fusion~linkedin-profile-search-scraper';
+const APIFY_ACTOR = 'harvestapi~linkedin-profile-search';
+
 
 const SEARCH_QUERIES = [
   { label: 'Egyptian founders Dubai',     query: 'Egyptian founder Dubai',        region: 'Egypt' },
