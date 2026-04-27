@@ -1,13 +1,18 @@
+/* FCIM Daily Intelligence — daily builder v2
+ * Runs in GitHub Actions on a schedule.
+ * Calls Apify LinkedIn scraper to pull named individuals matching FCIM target filters,
+ * classifies them into services/regions, applies compliance, writes index.html.
+ */
 const fs = require('node:fs');
 
 const APIFY_TOKEN = process.env.APIFY_TOKEN;
 if (!APIFY_TOKEN) {
-  console.error('FATAL: APIFY_TOKEN env var missing.');
+  console.error('FATAL: APIFY_TOKEN env var missing. Set it as a GitHub repo secret.');
   process.exit(1);
 }
 
+// Apify Actor for LinkedIn people search (no cookies, ~$3 per 1000 profiles)
 const APIFY_ACTOR = 'harvestapi~linkedin-profile-search';
-
 
 const SEARCH_QUERIES = [
   { label: 'Egyptian founders Dubai',     query: 'Egyptian founder Dubai',        region: 'Egypt' },
@@ -75,9 +80,11 @@ const COMPLIANCE_WARN = /\b(PEP|politically\s+exposed|state[- ]owned|sovereign\s
 async function runApifyActor(queryObj) {
   const url = `https://api.apify.com/v2/acts/${APIFY_ACTOR}/run-sync-get-dataset-items?token=${APIFY_TOKEN}`;
   const body = {
-    searchQueries: [queryObj.query],
-    maxProfiles: PROFILES_PER_QUERY,
-    location: 'Dubai, United Arab Emirates'
+    searchQuery: queryObj.query,
+    locations: ['United Arab Emirates'],
+    profileScraperMode: 'Short',
+    takePages: 1,
+    maxItems: PROFILES_PER_QUERY
   };
   try {
     const res = await fetch(url, {
@@ -87,7 +94,7 @@ async function runApifyActor(queryObj) {
     });
     if (!res.ok) {
       const text = await res.text();
-      console.warn(`Apify "${queryObj.label}": HTTP ${res.status} - ${text.slice(0,200)}`);
+      console.warn(`Apify "${queryObj.label}": HTTP ${res.status} — ${text.slice(0,200)}`);
       return [];
     }
     const data = await res.json();
@@ -103,13 +110,22 @@ async function runApifyActor(queryObj) {
 }
 
 function normaliseProfile(raw) {
+  const fullName = (raw.firstName || raw.lastName)
+    ? `${raw.firstName || ''} ${raw.lastName || ''}`.trim()
+    : (raw.fullName || raw.name || 'Name unavailable');
+  const company = (Array.isArray(raw.currentPosition) && raw.currentPosition[0])
+    ? (raw.currentPosition[0].companyName || '')
+    : (raw.currentCompany || raw.company || '');
+  const locText = (raw.location && typeof raw.location === 'object')
+    ? (raw.location.linkedinText || (raw.location.parsed && raw.location.parsed.text) || 'Dubai')
+    : (raw.location || 'Dubai');
   return {
-    name: raw.fullName || raw.name || 'Name unavailable',
-    title: raw.currentPosition || raw.headline || raw.position || '',
-    company: raw.currentCompany || raw.company || '',
-    location: raw.location || 'Dubai',
-    linkedinUrl: raw.profileUrl || raw.url || raw.linkedinUrl || '',
-    email: raw.email || null,
+    name: fullName,
+    title: raw.headline || raw.title || raw.position || '',
+    company: company,
+    location: locText,
+    linkedinUrl: raw.linkedinUrl || raw.profileUrl || raw.url || '',
+    email: raw.email || raw.emailAddress || null,
     about: raw.about || raw.summary || '',
     _queryRegion: raw._queryRegion,
     _queryLabel: raw._queryLabel
@@ -118,91 +134,156 @@ function normaliseProfile(raw) {
 
 function classifyProfile(p) {
   const text = `${p.name} ${p.title} ${p.company} ${p.about} ${p.location}`.toLowerCase();
-  const services = [];
-  for (const s of SERVICES) if (s.match.test(text) && !services.includes(s.name)) services.push(s.name);
-  const region = REGIONS.find(r => r.name === p._queryRegion) || null;
-  return {
-    primaryService: services[0] || null,
-    region: region ? region.name : null,
-    regionLead: region ? region.lead : null,
-    regionWarmPath: region ? region.warmPath : null
-  };
+  const services = SERVICES.filter(s => s.match.test(text));
+  return services.length ? services : [SERVICES[0]];
 }
 
 function runCompliance(p) {
   const text = `${p.name} ${p.title} ${p.company} ${p.about}`;
-  for (const rule of COMPLIANCE_BLOCK) if (rule.test(text)) return { allowed: false };
-  if (COMPLIANCE_WARN.test(text)) return { allowed: true, pep: true };
-  return { allowed: true };
+  for (const rx of COMPLIANCE_BLOCK) {
+    if (rx.test(text)) return { allowed: false, reason: 'blocked' };
+  }
+  const pep = COMPLIANCE_WARN.test(text);
+  return { allowed: true, pep };
 }
 
 function fingerprint(p) {
-  return `${(p.name || '').toLowerCase().trim()}|${(p.company || '').toLowerCase().trim()}`;
+  return `${(p.name||'').toLowerCase().trim()}|${(p.linkedinUrl||'').toLowerCase().trim()}`;
+}
+
+function regionFor(p) {
+  if (p._queryRegion) {
+    const r = REGIONS.find(x => x.name === p._queryRegion);
+    if (r) return r;
+  }
+  return REGIONS.find(x => x.name === 'UK / Western');
 }
 
 function escapeHtml(s) {
-  return String(s == null ? '' : s)
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+  return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
 }
 
-function buildDraftPrompt(p) {
-  return `Draft Yehya Abdelbaki's FCIM outreach.
-
-Name: ${p.name}
-Title: ${p.title}
-Company: ${p.company}
-LinkedIn: ${p.linkedinUrl}
-${p.email ? `Email: ${p.email}` : 'Email: not found'}
-
-FCIM service: ${p.primaryService || '(pick best fit)'}
-Region: ${p.region || '(not detected)'}
-Lead: ${p.regionLead || '(route by context)'}
-
-Write a <200 word email in Yehya's voice. Reference the prospect's role and firm. End with Yehya's signature (Yehya Abdelbaki / Relationship Manager / Fundament Capital Investment Management / yehya.abdelbaki@fundamentcapital.ae | +971 4 834 8385).`;
+function buildDraftPrompt(p, service, region) {
+  const lines = [
+    `Draft a cold outreach email from Yehya Abdelbaki (Relationship Manager, FCIM) to:`,
+    ``,
+    `Name: ${p.name}`,
+    `Title: ${p.title}`,
+    `Company: ${p.company}`,
+    `Location: ${p.location}`,
+    `LinkedIn: ${p.linkedinUrl || 'n/a'}`,
+    p.email ? `Email: ${p.email}` : `Email: not yet verified`,
+    ``,
+    `FCIM service to lead with: ${service.name}`,
+    `Service one-liner: ${service.solution}`,
+    ``,
+    `Warm path: ${region.warmPath}`,
+    region.lead ? `Internal lead for region: ${region.lead}` : ``,
+    ``,
+    `Hard rules:`,
+    `- Lead with FCIM platform, not senior names.`,
+    `- Never mention Gary Dugan.`,
+    `- Ibrahim Hemeida and Amr Fergany are never the first word of the email.`,
+    `- Tone: senior, restrained, specific. No marketing language.`,
+    `- Keep under 150 words.`,
+    `- Sign off:`,
+    `  Yehya Abdelbaki / Relationship Manager / Fundament Capital Investment Management / yehya.abdelbaki@fundamentcapital.ae | +971 4 834 8385`
+  ].filter(Boolean).join('\n');
+  return lines;
 }
 
-function prospectCardHtml(p, isFeatured) {
-  const service = SERVICES.find(s => s.name === p.primaryService);
-  const solutionText = service ? service.solution : 'Service match indeterminate - review profile.';
-  const warmPath = p.regionWarmPath || 'Region indeterminate.';
-  const complianceBlock = p.pep ? `<div class="compliance pep"><span class="label">Elevated DD</span>PEP exposure detected.</div>` : '';
-  const emailLine = p.email ? `<strong>Email:</strong> ${escapeHtml(p.email)} <em>(verify)</em>` : `<em>Email not found - use LinkedIn InMail</em>`;
-  const prompt = buildDraftPrompt(p);
+function prospectCardHtml(p) {
+  const services = classifyProfile(p);
+  const primary = services[0];
+  const region = regionFor(p);
+  const compTag = p.pep
+    ? `<span class="pill pill-warn">Compliance: PEP indicator — review before contact</span>`
+    : `<span class="pill pill-ok">Compliance: clear on automated screen</span>`;
+  const emailLine = p.email
+    ? `<div class="kv"><span class="k">Email</span><span class="v">${escapeHtml(p.email)}</span></div>`
+    : `<div class="kv"><span class="k">Email</span><span class="v muted">not yet verified — request enrichment</span></div>`;
+  const draftPrompt = buildDraftPrompt(p, primary, region);
+  const claudeUrl = `https://claude.ai/new?q=${encodeURIComponent(draftPrompt)}`;
   return `
-    <article class="prospect ${isFeatured ? 'featured' : ''}">
-      <div class="service-tag">${escapeHtml(p.primaryService || 'Market context')}</div>
-      <div class="head-row">
-        <div class="head-main">
-          <h3>${escapeHtml(p.name)}</h3>
-          <div class="sub">${escapeHtml(p.title)}${p.company ? ` \u00b7 ${escapeHtml(p.company)}` : ''}${p.region ? ` \u00b7 ${escapeHtml(p.region)}` : ''}</div>
-        </div>
-        ${p.regionLead ? `<div class="lead-block"><span class="lead-label">Lead</span>${escapeHtml(p.regionLead)}</div>` : ''}
-      </div>
-      <div class="section"><div class="label">Contact</div><p>${p.linkedinUrl ? `<a href="${escapeHtml(p.linkedinUrl)}" target="_blank">LinkedIn profile</a><br>` : ''}${emailLine}</p></div>
-      ${p.about ? `<div class="section"><div class="label">Background</div><p>${escapeHtml(p.about.slice(0,300))}</p></div>` : ''}
-      <div class="section"><div class="label">FCIM Solution</div><p>${escapeHtml(solutionText)}</p></div>
-      <div class="section"><div class="label">Warm Path</div><p>${escapeHtml(warmPath)}</p></div>
-      ${complianceBlock}
-      <div class="first-step"><div class="label">First Step</div><p>Approach ${escapeHtml(p.name)} via ${p.regionLead ? escapeHtml(p.regionLead) + '\u2019s network' : 'the appropriate FCIM colleague'}.</p><button class="draft-btn" data-prompt="${escapeHtml(prompt)}">Copy draft prompt</button></div>
-    </article>
-  `;
-}
-
-function renderServiceSection(svc, items) {
-  return `<section class="service-section"><div class="service-header"><div class="left"><h2>${escapeHtml(svc.name)}</h2><p>${escapeHtml(svc.desc)}</p></div><div class="right-meta">${items.length} prospect${items.length === 1 ? '' : 's'}</div></div>${items.length === 0 ? `<div class="empty-note">No prospects matched today.</div>` : `<div class="items">${items.map(p => prospectCardHtml(p, false)).join('')}</div>`}</section>`;
+  <article class="prospect">
+    <header>
+      <h3>${escapeHtml(p.name)}</h3>
+      <div class="sub">${escapeHtml(p.title)}${p.company ? ' · ' + escapeHtml(p.company) : ''}</div>
+      <div class="sub muted">${escapeHtml(p.location)}</div>
+    </header>
+    <div class="contact">
+      ${emailLine}
+      ${p.linkedinUrl ? `<div class="kv"><span class="k">LinkedIn</span><span class="v"><a href="${escapeHtml(p.linkedinUrl)}" target="_blank" rel="noopener">${escapeHtml(p.linkedinUrl)}</a></span></div>` : ''}
+    </div>
+    ${p.about ? `<div class="about"><span class="k">Background</span><p>${escapeHtml(p.about.slice(0,400))}${p.about.length>400?'…':''}</p></div>` : ''}
+    <div class="solution"><span class="k">FCIM solution</span><p>${escapeHtml(primary.solution)}</p></div>
+    <div class="warmpath"><span class="k">Warm path</span><p>${escapeHtml(region.warmPath)}</p></div>
+    <div class="pills">${compTag}${region.lead?`<span class="pill">Lead: ${escapeHtml(region.lead)}</span>`:''}<span class="pill">Service: ${escapeHtml(primary.name)}</span></div>
+    <div class="actions"><a class="btn" href="${claudeUrl}" target="_blank" rel="noopener">Open Claude with draft prompt</a></div>
+  </article>`;
 }
 
 function renderRegionChips(regionCounts) {
   return REGIONS.map(r => {
-    const n = regionCounts[r.name] || 0;
-    const isEmpty = n === 0;
-    return `<button class="region-chip ${isEmpty ? 'empty' : ''}" ${isEmpty ? 'disabled' : `data-region="${escapeHtml(r.name)}"`}><span>${escapeHtml(r.name)}</span><span class="count">${n}</span>${r.lead ? `<span class="lead">${escapeHtml(r.lead.split(' ')[0])}</span>` : ''}</button>`;
+    const count = regionCounts[r.name] || 0;
+    return `<span class="chip"><span class="chip-name">${escapeHtml(r.name)}</span> <span class="chip-count">${count}</span>${r.lead?`<span class="chip-lead">${escapeHtml(r.lead.split(' ')[0])}</span>`:''}</span>`;
   }).join('');
 }
 
+function buildHtml({ totalProspects, profilesByService, regionCounts }) {
+  const tpl = fs.readFileSync('index.template.html', 'utf8');
+  const date = new Date().toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric', timeZone:'Asia/Dubai' });
+  const builtAt = new Date().toLocaleString('en-GB', { timeZone:'Asia/Dubai' });
+
+  let council;
+  if (totalProspects === 0) {
+    council = `Council couldn't pull prospects today. Retry the Action.`;
+  } else {
+    council = `Council surfaced ${totalProspects} prospect${totalProspects===1?'':'s'} across ${Object.keys(profilesByService).length} service line${Object.keys(profilesByService).length===1?'':'s'}.`;
+  }
+
+  let featured = '';
+  let featuredWrapperStyle = 'display:none';
+  for (const svc of SERVICES) {
+    const list = profilesByService[svc.name] || [];
+    if (list.length) {
+      featured = prospectCardHtml(list[0]);
+      featuredWrapperStyle = '';
+      break;
+    }
+  }
+
+  const sections = SERVICES.map(svc => {
+    const list = profilesByService[svc.name] || [];
+    const cards = list.length
+      ? list.map(prospectCardHtml).join('')
+      : `<div class="empty">No prospects matched today.</div>`;
+    return `
+    <section class="service">
+      <header class="service-head">
+        <div>
+          <h2>${escapeHtml(svc.name)}</h2>
+          <p class="service-desc">${escapeHtml(svc.desc)}</p>
+        </div>
+        <div class="count">${list.length} <span>PROSPECT${list.length===1?'':'S'}</span></div>
+      </header>
+      <div class="cards">${cards}</div>
+    </section>`;
+  }).join('');
+
+  return tpl
+    .replace('{{DATE}}', escapeHtml(date))
+    .replace('{{COUNCIL_LINE}}', escapeHtml(council))
+    .replace('{{REGION_CHIPS}}', renderRegionChips(regionCounts))
+    .replace('{{FEATURED}}', featured)
+    .replace('{{FEATURED_WRAPPER_STYLE}}', featuredWrapperStyle)
+    .replace('{{CONTENT}}', sections)
+    .replace('{{BUILT_AT}}', escapeHtml(builtAt));
+}
+
 async function main() {
-  console.log('FCIM Daily Build v2 - starting');
+  console.log('FCIM Daily Build v2 — starting');
+
   const results = await Promise.all(SEARCH_QUERIES.map(runApifyActor));
   const raw = results.flat();
   console.log(`Raw profiles: ${raw.length}`);
@@ -224,48 +305,28 @@ async function main() {
     seen.add(fp);
     return true;
   });
+
   console.log(`After compliance+dedupe: ${profiles.length} (blocked: ${blocked})`);
 
-  profiles.forEach(p => Object.assign(p, classifyProfile(p)));
-
-  const featured = profiles.find(p => !p.pep && p.primaryService && p.region) || profiles[0] || null;
-  const remaining = featured ? profiles.filter(p => fingerprint(p) !== fingerprint(featured)) : profiles;
-
-  let servicesHtml = '';
-  let emptyServicesHtml = '';
-  for (const svc of SERVICES) {
-    const items = remaining.filter(p => p.primaryService === svc.name);
-    const html = renderServiceSection(svc, items);
-    if (items.length === 0) emptyServicesHtml += html;
-    else servicesHtml += html;
-  }
-
-  const unclassified = remaining.filter(p => !p.primaryService);
-  if (unclassified.length) {
-    servicesHtml += `<section class="service-section"><div class="service-header"><div class="left"><h2>Unclassified prospects</h2><p>Review manually.</p></div><div class="right-meta">${unclassified.length} prospect${unclassified.length === 1 ? '' : 's'}</div></div><div class="items">${unclassified.slice(0, 10).map(p => prospectCardHtml(p, false)).join('')}</div></section>`;
-  }
-
+  const profilesByService = {};
   const regionCounts = {};
-  REGIONS.forEach(r => regionCounts[r.name] = 0);
-  profiles.forEach(p => { if (p.region && regionCounts[p.region] !== undefined) regionCounts[p.region]++; });
+  for (const p of profiles) {
+    const services = classifyProfile(p);
+    const primary = services[0];
+    if (!profilesByService[primary.name]) profilesByService[primary.name] = [];
+    profilesByService[primary.name].push(p);
+    const r = regionFor(p);
+    regionCounts[r.name] = (regionCounts[r.name] || 0) + 1;
+  }
 
-  const dateStamp = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Dubai', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date());
-  const councilLine = featured
-    ? `Council convened - ${profiles.length} named prospects scanned via LinkedIn, ${blocked} blocked on compliance.`
-    : `Council couldn't pull prospects today. Retry the Action.`;
+  const html = buildHtml({
+    totalProspects: profiles.length,
+    profilesByService,
+    regionCounts
+  });
 
-  const template = fs.readFileSync('index.template.html', 'utf-8');
-  const html = template
-    .replace(/\{\{DATE\}\}/g, escapeHtml(dateStamp))
-    .replace(/\{\{BUILT_AT\}\}/g, escapeHtml(new Date().toISOString()))
-    .replace(/\{\{COUNCIL_LINE\}\}/g, escapeHtml(councilLine))
-    .replace(/\{\{REGION_CHIPS\}\}/g, renderRegionChips(regionCounts))
-    .replace(/\{\{FEATURED\}\}/g, featured ? prospectCardHtml(featured, true) : '')
-    .replace(/\{\{CONTENT\}\}/g, servicesHtml + emptyServicesHtml)
-    .replace(/\{\{FEATURED_WRAPPER_STYLE\}\}/g, featured ? '' : 'display:none');
-
-  fs.writeFileSync('index.html', html);
-  console.log(`Built index.html - ${profiles.length} prospects`);
+  fs.writeFileSync('index.html', html, 'utf8');
+  console.log(`Built index.html — ${profiles.length} prospects`);
 }
 
-main().catch(err => { console.error(err); process.exit(1); });
+main().catch(e => { console.error(e); process.exit(1); });
