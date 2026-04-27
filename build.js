@@ -1,4 +1,4 @@
-/* const fs = require('node:fs');
+const fs = require('node:fs');
 
 const APIFY_TOKEN = process.env.APIFY_TOKEN;
 if (!APIFY_TOKEN) {
