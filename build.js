@@ -1,1 +1,1 @@
-\n
+Open the shortcut. Find the Replace action (the one with \n with [something] in Base64 Encoded). Tap whatever is in the “with” field. Backspace until that field is completely empty — no space, no character. The placeholder text will show. Then run the shortcut
