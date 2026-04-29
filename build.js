@@ -11,27 +11,67 @@ if (!HUNTER_API_KEY) {
   console.warn('NOTE: HUNTER_API_KEY missing - emails fallback to format guesses.');
 }
 const APIFY_ACTOR = 'harvestapi~linkedin-profile-search';
-const QUALITY_THRESHOLD = 5;
+const QUALITY_THRESHOLD = 3;
 const MAX_HUNTER_CALLS_PER_RUN = 25;
 
 const QUERY_BUCKETS = [
-  { label: 'Armenian / Caucasus Dubai', body: { searchQuery: 'Armenian Dubai', takePages: 1 }, region: 'Caucasus / CIS', serviceHint: 'Foundation + Private Fund' },
-  { label: 'Russian Dubai', body: { searchQuery: 'Russian Dubai', takePages: 1 }, region: 'Russia / CIS', serviceHint: 'Foundation + Private Fund' },
-  { label: 'Nigerian / African Dubai', body: { searchQuery: 'Nigerian Dubai', takePages: 1 }, region: 'Africa', serviceHint: 'Foundation + Private Fund' },
-  { label: 'Lebanese Dubai', body: { searchQuery: 'Lebanese Dubai', takePages: 1 }, region: 'MENA / Levant', serviceHint: 'Foundation + Private Fund' },
-  { label: 'Egyptian Dubai', body: { searchQuery: 'Egyptian Dubai', takePages: 1 }, region: 'Egypt', serviceHint: 'Foundation + Private Fund' },
-  { label: 'Commodity trader Dubai', body: { searchQuery: 'commodity trader Dubai', takePages: 1 }, region: null, serviceHint: 'Commodity Derivatives' },
-  { label: 'Family office Dubai', body: { searchQuery: 'family office Dubai', takePages: 1 }, region: null, serviceHint: 'Foundation + Private Fund' },
-  { label: 'Wealth manager Dubai', body: { searchQuery: 'wealth manager Dubai', takePages: 1 }, region: null, serviceHint: 'Discretionary Portfolio Management' }
+  // Job-title-based queries that actually match LinkedIn profile text.
+  // Nationality strings ('Armenian', 'Russian') do NOT filter by nationality on LinkedIn —
+  // they full-text-match keywords, which produces near-zero signal. Use job titles instead.
+  {
+    label: 'Family office Dubai',
+    body: { searchQuery: 'family office', locations: ['Dubai'], profileScraperMode: 'Full', maxItems: 25, takePages: 1 },
+    region: null,
+    serviceHint: 'Foundation + Private Fund'
+  },
+  {
+    label: 'Wealth manager Dubai',
+    body: { searchQuery: 'wealth manager', locations: ['Dubai'], profileScraperMode: 'Full', maxItems: 25, takePages: 1 },
+    region: null,
+    serviceHint: 'Discretionary Portfolio Management'
+  },
+  {
+    label: 'Private banker Dubai',
+    body: { searchQuery: 'private banker', locations: ['Dubai'], profileScraperMode: 'Full', maxItems: 25, takePages: 1 },
+    region: null,
+    serviceHint: 'Discretionary Portfolio Management'
+  },
+  {
+    label: 'Commodity trader Dubai',
+    body: { searchQuery: 'commodity trader', locations: ['Dubai'], profileScraperMode: 'Full', maxItems: 25, takePages: 1 },
+    region: null,
+    serviceHint: 'Commodity Derivatives'
+  },
+  {
+    label: 'Investment manager Dubai',
+    body: { searchQuery: 'investment manager', locations: ['Dubai'], profileScraperMode: 'Full', maxItems: 25, takePages: 1 },
+    region: null,
+    serviceHint: 'Discretionary Portfolio Management'
+  },
+  {
+    label: 'External asset manager Dubai',
+    body: { searchQuery: 'external asset manager', locations: ['Dubai'], profileScraperMode: 'Full', maxItems: 25, takePages: 1 },
+    region: null,
+    serviceHint: 'EAM / FI Platform'
+  },
+  {
+    label: 'Fund manager Dubai',
+    body: { searchQuery: 'fund manager', locations: ['Dubai'], profileScraperMode: 'Full', maxItems: 25, takePages: 1 },
+    region: null,
+    serviceHint: 'CMA Private Fund (standalone)'
+  },
+  {
+    label: 'Family business chairman Dubai',
+    body: { searchQuery: 'group chairman', locations: ['Dubai'], profileScraperMode: 'Full', maxItems: 25, takePages: 1 },
+    region: null,
+    serviceHint: 'Foundation + Private Fund'
+  }
 ];
 
 function pickTodaysQueries() {
-  const now = new Date();
-  const start = new Date(Date.UTC(now.getUTCFullYear(), 0, 0));
-  const dayOfYear = Math.floor((now.getTime() - start.getTime()) / 86400000);
-  const i = dayOfYear % QUERY_BUCKETS.length;
-  const j = (i + 1) % QUERY_BUCKETS.length;
-  return [QUERY_BUCKETS[i], QUERY_BUCKETS[j]];
+  // Run all buckets every day. With 8 buckets * ~25 results, that's ~200 candidate profiles
+  // before scoring — enough to survive the quality gate. Apify cost: 8 * $0.10 = $0.80/run.
+  return QUERY_BUCKETS.slice();
 }
 
 const SERVICES = [
@@ -102,17 +142,29 @@ const COMPLIANCE_WARN = /\b(PEP|politically\s+exposed|state[- ]owned|sovereign\s
 
 async function runApifyActor(bucket) {
   const url = `https://api.apify.com/v2/acts/${APIFY_ACTOR}/run-sync-get-dataset-items?token=${APIFY_TOKEN}`;
+  // Apify's run-sync endpoint has a 300s server timeout; we add a client-side 280s
+  // AbortController in case the connection hangs (Node 20 fetch has no default timeout).
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 280000);
   try {
-    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(bucket.body) });
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(bucket.body),
+      signal: ctrl.signal
+    });
+    clearTimeout(timer);
     if (!res.ok) {
       const text = await res.text();
-      console.warn(`Apify "${bucket.label}": HTTP ${res.status} - ${text.slice(0, 200)}`);
+      console.warn(`Apify "${bucket.label}": HTTP ${res.status} - ${text.slice(0, 300)}`);
       return [];
     }
     const data = await res.json();
     if (!Array.isArray(data)) return [];
+    console.log(`Apify "${bucket.label}": ${data.length} profiles returned`);
     return data.map(p => ({ ...p, _queryRegion: bucket.region, _queryLabel: bucket.label, _queryServiceHint: bucket.serviceHint }));
   } catch (e) {
+    clearTimeout(timer);
     console.warn(`Apify "${bucket.label}" failed: ${e.message}`);
     return [];
   }
@@ -216,7 +268,16 @@ function runCompliance(p) {
   return { allowed: true, pep: COMPLIANCE_WARN.test(text) };
 }
 
-function fingerprint(p) { return `${(p.name || '').toLowerCase().trim()}|${(p.company || '').toLowerCase().trim()}`; }
+function fingerprint(p) {
+  // Prefer LinkedIn ID when available — it's globally unique. Falls back to name+company.
+  if (p.publicIdentifier) return `li:${p.publicIdentifier.toLowerCase()}`;
+  if (p.linkedinUrl) return `url:${p.linkedinUrl.toLowerCase().replace(/[/?#].*$/, '')}`;
+  const n = (p.name || '').toLowerCase().trim();
+  const c = (p.company || '').toLowerCase().trim();
+  if (!n) return '';
+  if (!c) return `n:${n}`;  // tag-prefix so name-only fingerprints don't collide with name+company ones
+  return `nc:${n}|${c}`;
+}
 
 function decodeEntities(s) {
   return String(s == null ? '' : s).replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#039;/g, "'").replace(/&#x27;/g, "'").replace(/&nbsp;/g, ' ');
@@ -359,7 +420,12 @@ async function main() {
   console.log('FCIM Daily Build v3 - starting');
   const buckets = pickTodaysQueries();
   console.log(`Today's buckets: ${buckets.map(b => b.label).join(' | ')}`);
-  const results = await Promise.all(buckets.map(runApifyActor));
+  // Sequential to avoid Apify concurrent-run limits and 429 rate-limiting on lower tiers.
+  const results = [];
+  for (const b of buckets) {
+    const r = await runApifyActor(b);
+    results.push(r);
+  }
   const raw = results.flat();
   console.log(`Raw profiles: ${raw.length}`);
   if (raw.length > 0) console.log(`Sample profile keys: ${Object.keys(raw[0]).slice(0, 25).join(', ')}`);
@@ -374,7 +440,7 @@ async function main() {
   const seen = new Set();
   profiles = profiles.filter(p => {
     const fp = fingerprint(p);
-    if (!fp || fp === '|' || seen.has(fp)) return false;
+    if (!fp || seen.has(fp)) return false;
     seen.add(fp);
     return true;
   });
@@ -394,6 +460,8 @@ async function main() {
     if (hunterCalls >= MAX_HUNTER_CALLS_PER_RUN) break;
     if (p.emailVerified) continue;
     if (!HUNTER_API_KEY) continue;
+    // Skip prospects we can't usefully query — don't burn the budget on no-ops.
+    if (!p.firstName || !p.lastName || !p.company) continue;
     const result = await findEmailViaHunter(p);
     hunterCalls++;
     if (result && result.email) {
@@ -423,15 +491,30 @@ async function main() {
   const dateStamp = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Dubai', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date());
   const verifiedCount = profiles.filter(p => p.emailVerified).length;
   const councilLine = featured ? `Council convened - ${profiles.length} qualified prospects, ${verifiedCount} with verified emails.` : `Council couldn't qualify any prospects today. ${beforeGate} pulled, ${beforeGate - profiles.length} dropped at the quality gate.`;
-  const template = fs.readFileSync('index.template.html', 'utf-8');
+  let template;
+  try {
+    template = fs.readFileSync('index.template.html', 'utf-8');
+  } catch (e) {
+    console.error('FATAL: index.template.html not found in working directory.');
+    console.error('Listing files in cwd:', fs.readdirSync('.').join(', '));
+    process.exit(1);
+  }
+  // Function-form replacements so $&, $1, etc. in values are not interpreted as backreferences.
+  const dateStr = escapeHtml(dateStamp);
+  const builtAtStr = escapeHtml(new Date().toISOString());
+  const councilStr = escapeHtml(councilLine);
+  const chipsStr = renderRegionChips(regionCounts);
+  const featuredStr = featured ? prospectCardHtml(featured, true) : '';
+  const contentStr = servicesHtml + emptyServicesHtml;
+  const wrapperStr = featured ? '' : 'display:none';
   const html = template
-    .replace(/\{\{DATE\}\}/g, escapeHtml(dateStamp))
-    .replace(/\{\{BUILT_AT\}\}/g, escapeHtml(new Date().toISOString()))
-    .replace(/\{\{COUNCIL_LINE\}\}/g, escapeHtml(councilLine))
-    .replace(/\{\{REGION_CHIPS\}\}/g, renderRegionChips(regionCounts))
-    .replace(/\{\{FEATURED\}\}/g, featured ? prospectCardHtml(featured, true) : '')
-    .replace(/\{\{CONTENT\}\}/g, servicesHtml + emptyServicesHtml)
-    .replace(/\{\{FEATURED_WRAPPER_STYLE\}\}/g, featured ? '' : 'display:none');
+    .replace(/\{\{DATE\}\}/g, () => dateStr)
+    .replace(/\{\{BUILT_AT\}\}/g, () => builtAtStr)
+    .replace(/\{\{COUNCIL_LINE\}\}/g, () => councilStr)
+    .replace(/\{\{REGION_CHIPS\}\}/g, () => chipsStr)
+    .replace(/\{\{FEATURED\}\}/g, () => featuredStr)
+    .replace(/\{\{CONTENT\}\}/g, () => contentStr)
+    .replace(/\{\{FEATURED_WRAPPER_STYLE\}\}/g, () => wrapperStr);
   fs.writeFileSync('index.html', html);
   console.log(`Built index.html - ${profiles.length} qualified prospects, ${verifiedCount} with verified emails.`);
 }
