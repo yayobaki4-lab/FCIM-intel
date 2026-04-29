@@ -12,51 +12,52 @@ if (!HUNTER_API_KEY) {
 }
 const APIFY_ACTOR_PRIMARY = 'harvestapi~linkedin-profile-search';
 const APIFY_ACTOR_FALLBACK = 'harvestapi~linkedin-profile-search-by-services';
-const QUALITY_THRESHOLD = 2;
+const QUALITY_THRESHOLD = 1;
 const MAX_HUNTER_CALLS_PER_RUN = 25;
 
 const QUERY_BUCKETS = [
-  // 8 buckets — one per FCIM service line, drawn from the corporate decks.
-  // Each uses queries[] (the working actor's schema) with specific multi-word phrases.
+  // v9: company-based scraping. Each bucket lists firms that DEFINITELY employ
+  // FCIM-target prospects in Dubai. We exclude FCIM compliance-blocked banks
+  // (Mashreq, Emirates NBD, Arqaam, Index & Cie, Skybound).
   {
-    label: 'HNW + Family Office Principals',
-    body: { queries: ['family office principal Dubai', 'UHNW family office Dubai', 'private wealth client Dubai', 'family office founder UAE'] },
-    region: null, serviceHint: 'Foundation + Private Fund'
-  },
-  {
-    label: 'UBO / Privacy Structures',
-    body: { queries: ['investment holding company chairman Dubai', 'group chairman family business UAE', 'private investment company Dubai', 'serial entrepreneur multiple ventures Dubai'] },
-    region: null, serviceHint: 'Foundation + Private Fund'
-  },
-  {
-    label: 'Family Succession / Estate',
-    body: { queries: ['family business successor Dubai', 'next generation family office UAE', 'family business council Dubai', 'second generation family business Dubai'] },
-    region: null, serviceHint: 'Family Office Advisory'
-  },
-  {
-    label: 'Commodity & Natural Resources',
-    body: { queries: ['physical commodity trader Dubai', 'commodity trading head Dubai', 'energy trading desk Dubai', 'metals trader Dubai', 'agri commodity trader Dubai', 'fertilizer trader Dubai'] },
-    region: null, serviceHint: 'Commodity Derivatives'
-  },
-  {
-    label: 'Funds, EAMs, Asset Managers',
-    body: { queries: ['external asset manager Dubai', 'independent wealth advisor UAE', 'fund manager launching Dubai', 'boutique wealth manager Dubai', 'multi family office founder Dubai'] },
-    region: null, serviceHint: 'EAM / FI Platform'
-  },
-  {
-    label: 'IB & Advisory candidates',
-    body: { queries: ['CFO mid-market UAE', 'corporate finance director Dubai', 'pre IPO Dubai', 'capital raise growth equity Dubai', 'M&A advisory Dubai'] },
-    region: null, serviceHint: 'IB & Advisory'
-  },
-  {
-    label: 'Distressed / Special Situations',
-    body: { queries: ['special situations investor Dubai', 'distressed credit Dubai', 'turnaround specialist Dubai', 'restructuring advisor Dubai', 'workout specialist UAE'] },
+    label: 'Swiss Private Banks Dubai',
+    body: { companies: ['Julius Baer', 'Lombard Odier', 'Pictet', 'EFG International', 'UBS', 'Mirabaud'] },
     region: null, serviceHint: 'Discretionary Portfolio Management'
   },
   {
-    label: 'Sponsors / Fund Formation',
-    body: { queries: ['general partner private equity Dubai', 'fund sponsor Dubai', 'launching private fund UAE', 'private equity managing partner Dubai', 'venture capital partner Dubai'] },
+    label: 'Global Private Banks Dubai',
+    body: { companies: ['HSBC Private Banking', 'BNP Paribas Wealth Management', 'Standard Chartered Private Bank', 'Deutsche Bank Wealth Management', 'Citi Private Bank', 'Barclays Private Bank'] },
+    region: null, serviceHint: 'Discretionary Portfolio Management'
+  },
+  {
+    label: 'Multi-Family Offices Dubai',
+    body: { companies: ['Stonehage Fleming', 'Lombard International', 'Bedrock Group', 'Maitland Group', 'Apex Group', 'IQ-EQ'] },
+    region: null, serviceHint: 'Family Office Advisory'
+  },
+  {
+    label: 'Investment Banks & Boutiques Dubai',
+    body: { companies: ['Rothschild & Co', 'Lazard', 'Houlihan Lokey', 'Moelis & Company', 'Evercore', 'Perella Weinberg Partners'] },
+    region: null, serviceHint: 'IB & Advisory'
+  },
+  {
+    label: 'PE / Asset Managers Dubai',
+    body: { companies: ['Investcorp', 'Gulf Capital', 'Abraaj', 'NBK Capital Partners', 'Waha Capital', 'Mubadala Capital'] },
     region: null, serviceHint: 'CMA Private Fund (standalone)'
+  },
+  {
+    label: 'Commodity Traders Dubai',
+    body: { companies: ['Trafigura', 'Vitol', 'Glencore', 'Mercuria', 'Gunvor', 'Cargill'] },
+    region: null, serviceHint: 'Commodity Derivatives'
+  },
+  {
+    label: 'DIFC Wealth Boutiques',
+    body: { companies: ['Mashreq Capital', 'NBK Wealth', 'ADCB Asset Management', 'Daman Investments', 'SHUAA Capital', 'Al Mal Capital'] },
+    region: null, serviceHint: 'EAM / FI Platform'
+  },
+  {
+    label: 'Family Holding Companies Dubai',
+    body: { companies: ['Al-Futtaim Group', 'Al Habtoor Group', 'Majid Al Futtaim', 'Galadari Brothers', 'Juma Al Majid Group', 'Al Naboodah Group'] },
+    region: null, serviceHint: 'Foundation + Private Fund'
   }
 ];
 
@@ -193,14 +194,16 @@ async function callApifyActor(actorId, bucket, bodyOverride) {
 }
 
 async function runApifyActor(bucket) {
-  // Use linkedin-profile-search-by-services — this is the actor your account has access to.
-  // It takes a queries[] array of natural-language search strings (NOT keywords).
+  // v9 strategy: scrape employees from KNOWN target firms (Julius Baer, UBS, etc).
+  // This is far more reliable than keyword search because the firms definitely exist
+  // and definitely employ wealth managers in Dubai.
   const body = {
-    profileScraperMode: 'Full',
-    queries: bucket.body.queries,
+    profileScraperMode: 'Short',
+    currentCompanies: bucket.body.companies,
+    locations: ['Dubai'],
     maxItems: 25
   };
-  const result = await callApifyActor(APIFY_ACTOR_FALLBACK, bucket, body);
+  const result = await callApifyActor(APIFY_ACTOR_PRIMARY, bucket, body);
   if (result.profiles.length > 0) {
     console.log(`Apify "${bucket.label}": ${result.profiles.length} profiles`);
     return result.profiles.map(p => ({ ...p, _queryRegion: bucket.region, _queryLabel: bucket.label, _queryServiceHint: bucket.serviceHint }));
@@ -294,12 +297,16 @@ function scoreProfile(p) {
   if (/\b(d2c|direct[- ]to[- ]consumer|e-?commerce|amazon\s+seller|shopify)/i.test(text)) { score -= 8; reasons.push('-8 D2C/e-commerce'); }
   if (/\b(retail|hospitality|restaurant|cafe|f&b)\b/i.test(text) && !/\b(wealth|investment|finance|capital|fund)\b/i.test(text)) { score -= 6; reasons.push('-6 retail w/o finance'); }
   // Penalize obvious non-finance industries that the keyword search may surface
-  if (/\b(tile|ceramic|construction|export|shipping|freight|logistics\s+(company|firm))\b/i.test(text) && !/\b(wealth|investment|finance|capital|fund|family\s+office)\b/i.test(text)) { score -= 8; reasons.push('-8 unrelated industry'); }
+  if (/\b(tile|ceramic|construction\s+(materials|company)|garment|textile\s+(export|trader)|home\s+goods)\b/i.test(text) && !/\b(wealth|investment|finance|capital|fund|family\s+office)\b/i.test(text)) { score -= 8; reasons.push('-8 unrelated industry'); }
   if (/\b(real\s+estate\s+agent|broker|property\s+consultant)\b/i.test(text) && !/\b(wealth|investment|finance|capital|fund|family\s+office)\b/i.test(text)) { score -= 6; reasons.push('-6 real estate sales'); }
-  if (/\b(IT|software|developer|engineer|programmer)\b/i.test(text) && !/\b(wealth|investment|finance|capital|fund|family\s+office|fintech)\b/i.test(text)) { score -= 6; reasons.push('-6 IT/dev role'); }
+  if (/\b(software\s+(engineer|developer)|IT\s+manager|IT\s+director|backend\s+engineer|frontend\s+developer|DevOps|programmer|cloud\s+engineer|systems\s+engineer|full[- ]stack)\b/i.test(text) && !/\b(wealth|investment|finance|capital|fund|family\s+office|fintech|asset\s+management)\b/i.test(text)) { score -= 6; reasons.push('-6 IT/dev role'); }
   if (/\b(student|intern|junior)\b/i.test(text)) { score -= 5; reasons.push('-5 junior'); }
   if (/\b(marketing|growth|content|social\s+media|HR|recruit)\b/i.test(text) && !/\b(wealth|investment|finance|capital|fund|family\s+office)\b/i.test(text)) { score -= 4; reasons.push('-4 non-finance function'); }
   if (/\bfounder\b/i.test(text) && !/(family\s+office|investment|fund|capital|wealth|holding)/i.test(text)) { score -= 3; reasons.push('-3 generic founder'); }
+  // v9: trusted-firm boost. We only scrape from FCIM-target firms in the first place,
+  // so being employed at one of these firms is itself qualification.
+  const targetFirms = /\b(julius\s+baer|lombard\s+odier|pictet|EFG|UBS|mirabaud|HSBC|BNP\s+paribas|standard\s+chartered|deutsche\s+bank|citi\s+private|barclays|stonehage|maitland|apex|IQ-?EQ|rothschild|lazard|houlihan|moelis|evercore|perella|investcorp|gulf\s+capital|abraaj|NBK|waha|mubadala|trafigura|vitol|glencore|mercuria|gunvor|cargill|al-?futtaim|al\s+habtoor|majid\s+al\s+futtaim|galadari|al\s+majid|al\s+naboodah|SHUAA|daman|al\s+mal)\b/i;
+  if (targetFirms.test(text)) { score += 5; reasons.push('+5 target firm'); }
   // FCIM-specific positive signals (added v8)
   if (/\b(group\s+chairman|chairman\s+of\s+the\s+board|family\s+business\s+chairman)\b/i.test(text)) { score += 5; reasons.push('+5 chairman'); }
   if (/\b(holding\s+company|investment\s+holding|family\s+holding|group\s+holdings?)\b/i.test(text)) { score += 4; reasons.push('+4 holding co'); }
@@ -523,7 +530,7 @@ function renderRegionChips(regionCounts) {
 }
 
 async function main() {
-  console.log('FCIM Daily Build v8.1 - starting');
+  console.log('FCIM Daily Build v9 - company-based - starting');
   await checkApifyAccount();
   const buckets = pickTodaysQueries();
   console.log(`Today's buckets: ${buckets.map(b => b.label).join(' | ')}`);
