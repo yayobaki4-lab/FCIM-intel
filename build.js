@@ -12,7 +12,7 @@ if (!HUNTER_API_KEY) {
 }
 const APIFY_ACTOR_PRIMARY = 'harvestapi~linkedin-profile-search';
 const APIFY_ACTOR_FALLBACK = 'harvestapi~linkedin-profile-search-by-services';
-const QUALITY_THRESHOLD = 3;
+const QUALITY_THRESHOLD = 1;
 const MAX_HUNTER_CALLS_PER_RUN = 25;
 
 const QUERY_BUCKETS = [
@@ -199,16 +199,8 @@ async function callApifyActor(actorId, bucket, bodyOverride) {
 }
 
 async function runApifyActor(bucket) {
-  // Try primary actor (linkedin-profile-search, full schema with locations + profileScraperMode).
-  const primary = await callApifyActor(APIFY_ACTOR_PRIMARY, bucket);
-  if (primary.profiles.length > 0) {
-    console.log(`Apify "${bucket.label}": ${primary.profiles.length} profiles (primary)`);
-    return primary.profiles.map(p => ({ ...p, _queryRegion: bucket.region, _queryLabel: bucket.label, _queryServiceHint: bucket.serviceHint }));
-  }
-  // Primary returned empty or failed — try fallback actor with simpler query.
-  // The fallback (linkedin-profile-search-by-services) uses a different schema:
-  // it takes `profileScraperMode` and `queries` (array of strings) instead of `searchQuery` + `locations`.
-  console.log(`Apify "${bucket.label}": primary empty, trying fallback...`);
+  // Skip the primary actor — it returns empty for this account/token combo (verified in production logs).
+  // Use linkedin-profile-search-by-services directly: cheaper, no rate limits, takes `queries` array.
   const fallbackBody = {
     profileScraperMode: 'Full',
     queries: [`${bucket.body.searchQuery} Dubai`],
@@ -216,27 +208,69 @@ async function runApifyActor(bucket) {
   };
   const fb = await callApifyActor(APIFY_ACTOR_FALLBACK, bucket, fallbackBody);
   if (fb.profiles.length > 0) {
-    console.log(`Apify "${bucket.label}": ${fb.profiles.length} profiles (fallback)`);
+    console.log(`Apify "${bucket.label}": ${fb.profiles.length} profiles`);
     return fb.profiles.map(p => ({ ...p, _queryRegion: bucket.region, _queryLabel: bucket.label, _queryServiceHint: bucket.serviceHint }));
   }
-  console.warn(`Apify "${bucket.label}": both actors returned empty. Primary status=${primary.status} body=${primary.body || 'none'} | Fallback status=${fb.status} body=${fb.body || 'none'}`);
+  console.warn(`Apify "${bucket.label}": empty. status=${fb.status} body=${fb.body || 'none'}`);
   return [];
 }
 
 function normaliseProfile(raw) {
-  const fullName = (raw.firstName || raw.lastName) ? `${raw.firstName || ''} ${raw.lastName || ''}`.trim() : (raw.fullName || raw.name || 'Name unavailable');
-  const company = (Array.isArray(raw.currentPosition) && raw.currentPosition[0]) ? (raw.currentPosition[0].companyName || '') : (raw.currentCompany || raw.company || '');
-  const locText = (raw.location && typeof raw.location === 'object') ? (raw.location.linkedinText || (raw.location.parsed && raw.location.parsed.text) || 'Dubai') : (raw.location || 'Dubai');
+  // Handle both actor schemas: linkedin-profile-search returns firstName/lastName/headline/currentPosition[0].companyName,
+  // linkedin-profile-search-by-services returns name/position/summary/services (no currentPosition array, no separate company field).
+  const fullName = (raw.firstName || raw.lastName)
+    ? `${raw.firstName || ''} ${raw.lastName || ''}`.trim()
+    : (raw.fullName || raw.name || 'Name unavailable');
+
+  // Company: try multiple shapes
+  let company = '';
+  if (Array.isArray(raw.currentPosition) && raw.currentPosition[0]) {
+    company = raw.currentPosition[0].companyName || raw.currentPosition[0].company || '';
+  }
+  if (!company) company = raw.currentCompany || raw.company || '';
+  // Fallback actor often embeds "@ Company" inside position/headline string — try to extract.
+  if (!company) {
+    const titleStr = raw.position || raw.headline || raw.title || '';
+    const atMatch = titleStr.match(/\s+(?:at|@)\s+(.+?)(?:[|·•]|$)/i);
+    if (atMatch) company = atMatch[1].trim();
+  }
+
+  // Title
+  const title = raw.headline || raw.title || raw.position || '';
+
+  // About / scoring text — concat summary, about, services array, topSkills so scoring has signal.
+  const aboutParts = [];
+  if (raw.about) aboutParts.push(raw.about);
+  if (raw.summary) aboutParts.push(raw.summary);
+  if (Array.isArray(raw.services)) aboutParts.push(raw.services.map(s => typeof s === 'string' ? s : (s.name || s.title || '')).join(' '));
+  if (raw.topSkills) aboutParts.push(raw.topSkills);
+  const about = aboutParts.filter(Boolean).join(' \n ');
+
+  // Location
+  const locText = (raw.location && typeof raw.location === 'object')
+    ? (raw.location.linkedinText || (raw.location.parsed && raw.location.parsed.text) || 'Dubai')
+    : (raw.location || 'Dubai');
+
+  // Slug / URL
   const slug = raw.publicIdentifier && !/^AC[oOwW]A/.test(raw.publicIdentifier) ? raw.publicIdentifier : null;
-  const linkedinUrl = slug ? `https://www.linkedin.com/in/${slug}` : (raw.linkedinUrl || raw.profileUrl || raw.url || '');
+  const linkedinUrl = slug
+    ? `https://www.linkedin.com/in/${slug}`
+    : (raw.linkedinUrl || raw.linkedinProfileUrl || raw.profileUrl || raw.url || '');
+
+  // Email — fallback actor may put emails in an array
+  let email = raw.email || raw.emailAddress || null;
+  if (!email && Array.isArray(raw.emails) && raw.emails.length > 0) {
+    email = typeof raw.emails[0] === 'string' ? raw.emails[0] : (raw.emails[0].email || raw.emails[0].address || null);
+  }
+
   return {
     firstName: raw.firstName || (fullName.split(' ')[0] || ''),
     lastName: raw.lastName || (fullName.split(' ').slice(1).join(' ') || ''),
-    name: fullName, title: raw.headline || raw.title || raw.position || '', company, location: locText,
+    name: fullName, title, company, location: locText,
     linkedinUrl, publicIdentifier: slug || null,
-    email: raw.email || raw.emailAddress || null, emailScore: null,
-    emailVerified: !!(raw.email || raw.emailAddress),
-    about: raw.about || raw.summary || '',
+    email, emailScore: null,
+    emailVerified: !!email,
+    about,
     _queryRegion: raw._queryRegion, _queryLabel: raw._queryLabel, _queryServiceHint: raw._queryServiceHint
   };
 }
@@ -470,7 +504,7 @@ function renderRegionChips(regionCounts) {
 }
 
 async function main() {
-  console.log('FCIM Daily Build v4 - starting');
+  console.log('FCIM Daily Build v5 - starting');
   await checkApifyAccount();
   const buckets = pickTodaysQueries();
   console.log(`Today's buckets: ${buckets.map(b => b.label).join(' | ')}`);
@@ -500,6 +534,14 @@ async function main() {
   });
   console.log(`After compliance+dedupe: ${profiles.length} (blocked: ${blocked})`);
   const beforeGate = profiles.length;
+  // Diagnostic: log first profile's scoring text + score so we can see why things drop.
+  if (profiles.length > 0) {
+    const sample = profiles[0];
+    const s0 = scoreProfile(sample);
+    console.log(`Sample profile: name="${sample.name}" title="${sample.title}" company="${sample.company}"`);
+    console.log(`Sample about (first 200 chars): ${(sample.about || '').slice(0, 200)}`);
+    console.log(`Sample score: ${s0.score} reasons: ${s0.reasons.join(', ') || '(none)'}`);
+  }
   profiles = profiles.map(p => { const s = scoreProfile(p); p._score = s.score; p._scoreReasons = s.reasons; return p; }).filter(p => p._score >= QUALITY_THRESHOLD).sort((a, b) => b._score - a._score);
   console.log(`After quality gate (>= ${QUALITY_THRESHOLD}): ${profiles.length} (dropped ${beforeGate - profiles.length})`);
   for (const p of profiles) {
