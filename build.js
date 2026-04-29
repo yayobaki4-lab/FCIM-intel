@@ -10,7 +10,8 @@ const HUNTER_API_KEY = process.env.HUNTER_API_KEY || null;
 if (!HUNTER_API_KEY) {
   console.warn('NOTE: HUNTER_API_KEY missing - emails fallback to format guesses.');
 }
-const APIFY_ACTOR = 'harvestapi~linkedin-profile-search';
+const APIFY_ACTOR_PRIMARY = 'harvestapi~linkedin-profile-search';
+const APIFY_ACTOR_FALLBACK = 'harvestapi~linkedin-profile-search-by-services';
 const QUALITY_THRESHOLD = 3;
 const MAX_HUNTER_CALLS_PER_RUN = 25;
 
@@ -140,34 +141,86 @@ const COMPLIANCE_BLOCK = [
 ];
 const COMPLIANCE_WARN = /\b(PEP|politically\s+exposed|state[- ]owned|sovereign\s+wealth|minister|ambassador)\b/i;
 
-async function runApifyActor(bucket) {
-  const url = `https://api.apify.com/v2/acts/${APIFY_ACTOR}/run-sync-get-dataset-items?token=${APIFY_TOKEN}`;
-  // Apify's run-sync endpoint has a 300s server timeout; we add a client-side 280s
-  // AbortController in case the connection hangs (Node 20 fetch has no default timeout).
+async function checkApifyAccount() {
+  // Diagnostic: hit /v2/users/me to verify token is valid and check account state.
+  try {
+    const res = await fetch(`https://api.apify.com/v2/users/me?token=${APIFY_TOKEN}`);
+    if (!res.ok) {
+      console.warn(`Apify account check FAILED: HTTP ${res.status}. Token may be invalid/expired.`);
+      const t = await res.text();
+      console.warn(`Response: ${t.slice(0, 400)}`);
+      return false;
+    }
+    const data = await res.json();
+    const u = data.data || {};
+    console.log(`Apify account: username=${u.username || '?'} plan=${u.plan || '?'} email=${u.email ? 'set' : 'unset'}`);
+    return true;
+  } catch (e) {
+    console.warn(`Apify account check threw: ${e.message}`);
+    return false;
+  }
+}
+
+async function callApifyActor(actorId, bucket, bodyOverride) {
+  const url = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${APIFY_TOKEN}`;
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 280000);
+  const body = bodyOverride || bucket.body;
   try {
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(bucket.body),
+      body: JSON.stringify(body),
       signal: ctrl.signal
     });
     clearTimeout(timer);
     if (!res.ok) {
       const text = await res.text();
-      console.warn(`Apify "${bucket.label}": HTTP ${res.status} - ${text.slice(0, 300)}`);
-      return [];
+      console.warn(`Apify[${actorId}] "${bucket.label}": HTTP ${res.status} - ${text.slice(0, 400)}`);
+      return { ok: false, profiles: [], status: res.status, body: text.slice(0, 400) };
     }
-    const data = await res.json();
-    if (!Array.isArray(data)) return [];
-    console.log(`Apify "${bucket.label}": ${data.length} profiles returned`);
-    return data.map(p => ({ ...p, _queryRegion: bucket.region, _queryLabel: bucket.label, _queryServiceHint: bucket.serviceHint }));
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); }
+    catch (e) {
+      console.warn(`Apify[${actorId}] "${bucket.label}": JSON parse failed. Body: ${text.slice(0, 300)}`);
+      return { ok: false, profiles: [], status: 200, body: text.slice(0, 300) };
+    }
+    if (!Array.isArray(data)) {
+      console.warn(`Apify[${actorId}] "${bucket.label}": non-array response: ${JSON.stringify(data).slice(0, 300)}`);
+      return { ok: false, profiles: [], status: 200, body: JSON.stringify(data).slice(0, 300) };
+    }
+    return { ok: true, profiles: data, status: 200 };
   } catch (e) {
     clearTimeout(timer);
-    console.warn(`Apify "${bucket.label}" failed: ${e.message}`);
-    return [];
+    console.warn(`Apify[${actorId}] "${bucket.label}" threw: ${e.message}`);
+    return { ok: false, profiles: [], status: 0, body: e.message };
   }
+}
+
+async function runApifyActor(bucket) {
+  // Try primary actor (linkedin-profile-search, full schema with locations + profileScraperMode).
+  const primary = await callApifyActor(APIFY_ACTOR_PRIMARY, bucket);
+  if (primary.profiles.length > 0) {
+    console.log(`Apify "${bucket.label}": ${primary.profiles.length} profiles (primary)`);
+    return primary.profiles.map(p => ({ ...p, _queryRegion: bucket.region, _queryLabel: bucket.label, _queryServiceHint: bucket.serviceHint }));
+  }
+  // Primary returned empty or failed — try fallback actor with simpler query.
+  // The fallback (linkedin-profile-search-by-services) uses a different schema:
+  // it takes `profileScraperMode` and `queries` (array of strings) instead of `searchQuery` + `locations`.
+  console.log(`Apify "${bucket.label}": primary empty, trying fallback...`);
+  const fallbackBody = {
+    profileScraperMode: 'Full',
+    queries: [`${bucket.body.searchQuery} Dubai`],
+    maxItems: 25
+  };
+  const fb = await callApifyActor(APIFY_ACTOR_FALLBACK, bucket, fallbackBody);
+  if (fb.profiles.length > 0) {
+    console.log(`Apify "${bucket.label}": ${fb.profiles.length} profiles (fallback)`);
+    return fb.profiles.map(p => ({ ...p, _queryRegion: bucket.region, _queryLabel: bucket.label, _queryServiceHint: bucket.serviceHint }));
+  }
+  console.warn(`Apify "${bucket.label}": both actors returned empty. Primary status=${primary.status} body=${primary.body || 'none'} | Fallback status=${fb.status} body=${fb.body || 'none'}`);
+  return [];
 }
 
 function normaliseProfile(raw) {
@@ -417,7 +470,8 @@ function renderRegionChips(regionCounts) {
 }
 
 async function main() {
-  console.log('FCIM Daily Build v3 - starting');
+  console.log('FCIM Daily Build v4 - starting');
+  await checkApifyAccount();
   const buckets = pickTodaysQueries();
   console.log(`Today's buckets: ${buckets.map(b => b.label).join(' | ')}`);
   // Sequential to avoid Apify concurrent-run limits and 429 rate-limiting on lower tiers.
