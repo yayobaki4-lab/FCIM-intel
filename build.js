@@ -16,47 +16,47 @@ const QUALITY_THRESHOLD = 2;
 const MAX_HUNTER_CALLS_PER_RUN = 25;
 
 const QUERY_BUCKETS = [
-  // Each bucket sends multi-word, finance-specific phrases via queries[] array.
-  // Long phrases reduce the actor matching irrelevant profiles (like tile exporters).
+  // 8 buckets — one per FCIM service line, drawn from the corporate decks.
+  // Each uses queries[] (the working actor's schema) with specific multi-word phrases.
   {
-    label: 'Family office',
-    body: { queries: ['family office Dubai', 'single family office UAE', 'multi family office Dubai'] },
+    label: 'HNW + Family Office Principals',
+    body: { queries: ['family office principal Dubai', 'UHNW family office Dubai', 'private wealth client Dubai', 'family office founder UAE'] },
     region: null, serviceHint: 'Foundation + Private Fund'
   },
   {
-    label: 'Wealth manager',
-    body: { queries: ['wealth manager Dubai', 'senior wealth manager UAE', 'head of wealth management Dubai'] },
-    region: null, serviceHint: 'Discretionary Portfolio Management'
+    label: 'UBO / Privacy Structures',
+    body: { queries: ['investment holding company chairman Dubai', 'group chairman family business UAE', 'private investment company Dubai', 'serial entrepreneur multiple ventures Dubai'] },
+    region: null, serviceHint: 'Foundation + Private Fund'
   },
   {
-    label: 'Private banker',
-    body: { queries: ['private banker Dubai', 'senior private banker UAE', 'head of private banking Dubai'] },
-    region: null, serviceHint: 'Discretionary Portfolio Management'
+    label: 'Family Succession / Estate',
+    body: { queries: ['family business successor Dubai', 'next generation family office UAE', 'family business council Dubai', 'second generation family business Dubai'] },
+    region: null, serviceHint: 'Family Office Advisory'
   },
   {
-    label: 'Chief Investment Officer',
-    body: { queries: ['Chief Investment Officer Dubai', 'CIO investment management UAE', 'head of investments Dubai'] },
-    region: null, serviceHint: 'Discretionary Portfolio Management'
+    label: 'Commodity & Natural Resources',
+    body: { queries: ['physical commodity trader Dubai', 'commodity trading head Dubai', 'energy trading desk Dubai', 'metals trader Dubai', 'agri commodity trader Dubai', 'fertilizer trader Dubai'] },
+    region: null, serviceHint: 'Commodity Derivatives'
   },
   {
-    label: 'Fund manager',
-    body: { queries: ['fund manager Dubai', 'portfolio manager UAE', 'hedge fund manager Dubai'] },
-    region: null, serviceHint: 'CMA Private Fund (standalone)'
-  },
-  {
-    label: 'External asset manager',
-    body: { queries: ['external asset manager Dubai', 'EAM Dubai', 'independent wealth advisor UAE'] },
+    label: 'Funds, EAMs, Asset Managers',
+    body: { queries: ['external asset manager Dubai', 'independent wealth advisor UAE', 'fund manager launching Dubai', 'boutique wealth manager Dubai', 'multi family office founder Dubai'] },
     region: null, serviceHint: 'EAM / FI Platform'
   },
   {
-    label: 'Investment director',
-    body: { queries: ['investment director Dubai', 'managing director investments UAE', 'head of investments Dubai'] },
+    label: 'IB & Advisory candidates',
+    body: { queries: ['CFO mid-market UAE', 'corporate finance director Dubai', 'pre IPO Dubai', 'capital raise growth equity Dubai', 'M&A advisory Dubai'] },
+    region: null, serviceHint: 'IB & Advisory'
+  },
+  {
+    label: 'Distressed / Special Situations',
+    body: { queries: ['special situations investor Dubai', 'distressed credit Dubai', 'turnaround specialist Dubai', 'restructuring advisor Dubai', 'workout specialist UAE'] },
     region: null, serviceHint: 'Discretionary Portfolio Management'
   },
   {
-    label: 'Managing partner',
-    body: { queries: ['managing partner family office Dubai', 'founding partner wealth management UAE'] },
-    region: null, serviceHint: 'Foundation + Private Fund'
+    label: 'Sponsors / Fund Formation',
+    body: { queries: ['general partner private equity Dubai', 'fund sponsor Dubai', 'launching private fund UAE', 'private equity managing partner Dubai', 'venture capital partner Dubai'] },
+    region: null, serviceHint: 'CMA Private Fund (standalone)'
   }
 ];
 
@@ -67,14 +67,14 @@ function pickTodaysQueries() {
 }
 
 const SERVICES = [
-  { name: 'Discretionary Portfolio Management', desc: 'Five CMA-approved models from capital preservation through aggressive. USD 1M minimum mandate.', solution: 'Discretionary mandate on a CMA-approved model portfolio matched to the client risk profile and return objectives.' },
-  { name: 'Foundation + Private Fund', desc: 'UAE Foundation owning a CMA Private Fund. Three-level control. UBO privacy. 10-day formation.', solution: 'UAE Foundation owning a CMA Private Fund. Only FCIM and the regulator know the UBO.' },
-  { name: 'CMA Private Fund (standalone)', desc: 'Regulated UAE private fund. No restriction on asset type. Fast-track 10 working day setup.', solution: 'Standalone CMA Private Fund. No restrictions on asset class - public/private equity, real estate, commodities.' },
-  { name: 'Commodity Derivatives', desc: 'SCA-licensed direct CME / ICE / LME / EEX / SGX access without a clearing account.', solution: 'SCA-licensed commodity derivatives platform. Direct CME, ICE, LME, EEX, SGX access without clearing account.' },
-  { name: 'Fund Administration', desc: 'One of only five UAE-authorised fund administrators. In-house or third-party funds.', solution: 'Fund administration for in-house or third-party funds, UAE or foreign-domiciled.' },
-  { name: 'IB & Advisory', desc: 'Dmitri Tchekalkine-led desk. ECM, DCM, M&A, listings on UAE exchanges.', solution: 'Investment banking and advisory. IPO / bond / sukuk issuance, UAE exchange listings, M&A.' },
-  { name: 'Family Office Advisory', desc: 'Governance, succession, estate planning, concierge, VC/PE direct deals.', solution: 'Full family office build: governance, multi-generational succession, estate planning, concierge, VC/PE access.' },
-  { name: 'EAM / FI Platform', desc: 'Confidential Client Money accounts at FAB and ENBD. Secondary custodianship for EAMs and FIs.', solution: 'Platform for EAMs and FIs. Confidential Client Money accounts at FAB and ENBD with FCIM as secondary custodian.' }
+  { name: 'Discretionary Portfolio Management', desc: 'CMA-approved discretionary mandates for HNWIs, family offices, PICs, and institutions.', solution: 'Discretionary portfolio management with strategic asset allocation, manager selection, and risk-resilient execution. Customized to risk profile and time horizon.' },
+  { name: 'Foundation + Private Fund', desc: 'UAE Foundation owning a CMA Private Fund. UBO privacy, founder control, 10-day formation.', solution: 'UAE Foundation owning a CMA Private Fund. Only FCIM and CMA know the UBO. Founder retains control via Charter and By-laws.' },
+  { name: 'CMA Private Fund (standalone)', desc: 'Regulated UAE private fund. No asset-class restrictions. Fast-track 10-day CMA approval.', solution: 'Standalone CMA Private Fund. Free from restrictions on asset type, single-asset concentration up to 100%, simplified KYC, dual control levels.' },
+  { name: 'Commodity Derivatives', desc: 'SCA-licensed direct access to CME, ICE, LME, EEX, SGX. No need for own clearing account.', solution: 'SCA-licensed commodity derivatives platform. Direct exchange access (CME, ICE, LME, EEX, SGX) and clearing without client maintaining own clearing relationships. Hedging across energy, metals, agri, freight, environmental products.' },
+  { name: 'Fund Administration', desc: 'One of only five UAE-authorised fund administrators. In-house and third-party funds.', solution: 'Fund administration for in-house or third-party funds, UAE or foreign-domiciled. NAV, transparent reporting, regulatory oversight.' },
+  { name: 'IB & Advisory', desc: 'Dmitri Tchekalkine-led desk. ECM, DCM, M&A, valuations, regulatory advisory. $50M-$150M deals.', solution: 'Investment banking and advisory: ECM (IPOs, rights issues), DCM (bonds, sukuk), M&A end-to-end, valuations and feasibility, CMA/ADX/DFM regulatory advisory.' },
+  { name: 'Family Office Advisory', desc: 'Governance, multi-generational succession, estate planning, concierge, VC/PE direct deals.', solution: 'Full family office build covering governance, succession, estate, concierge, and direct deal access. Cross-border execution with discretion.' },
+  { name: 'EAM / FI Platform', desc: 'Confidential Client Money accounts at FAB and ENBD. Platform for EAMs and FIs.', solution: 'EAM/FI platform with Confidential Client Money accounts at FAB and ENBD. FCIM acts as secondary custodian; EAMs leverage platform for client mandates.' }
 ];
 
 const PROBLEMS = [
@@ -107,7 +107,10 @@ const PROBLEMS = [
     fcimService: 'Discretionary Portfolio Management', angle: 'Liquid capital seeking managed mandate - five CMA-approved model portfolios, USD 1M minimum.' },
   { id: 'sensitive-jurisdiction-banking', label: 'Banking access difficulty due to sensitive nationality / jurisdiction',
     signals: [/\b(Russian|Belarusian|Iranian|Syrian)\b/i, /\b(sanction|de-?risk|banking\s+access)\b/i, /\b(re-?domicile|relocation|UAE\s+residency)\b/i],
-    fcimService: 'Foundation + Private Fund', angle: 'Banking friction due to nationality/jurisdiction - UAE-regulated Foundation + Private Fund stack restores banking access while preserving privacy.' }
+    fcimService: 'Foundation + Private Fund', angle: 'Banking friction due to nationality/jurisdiction - UAE-regulated Foundation + Private Fund stack restores banking access while preserving privacy.' },
+  { id: 'distressed-special', label: 'Distressed credit / special situations sponsor',
+    signals: [/\b(distressed|special\s+situations|turnaround|workout|restructuring)\b/i, /\b(debt-?for-?equity|recapitalization|bankruptcy|chapter\s+11)\b/i, /\b(secondary\s+(market|acquisition)|opportunistic\s+credit)\b/i],
+    fcimService: 'Discretionary Portfolio Management', angle: 'Distressed and special situations expertise - FCIM specializes in disciplined underwriting, active engagement, and structuring around recapitalizations and workouts.' }
 ];
 
 const REGIONS = [
@@ -297,6 +300,18 @@ function scoreProfile(p) {
   if (/\b(student|intern|junior)\b/i.test(text)) { score -= 5; reasons.push('-5 junior'); }
   if (/\b(marketing|growth|content|social\s+media|HR|recruit)\b/i.test(text) && !/\b(wealth|investment|finance|capital|fund|family\s+office)\b/i.test(text)) { score -= 4; reasons.push('-4 non-finance function'); }
   if (/\bfounder\b/i.test(text) && !/(family\s+office|investment|fund|capital|wealth|holding)/i.test(text)) { score -= 3; reasons.push('-3 generic founder'); }
+  // FCIM-specific positive signals (added v8)
+  if (/\b(group\s+chairman|chairman\s+of\s+the\s+board|family\s+business\s+chairman)\b/i.test(text)) { score += 5; reasons.push('+5 chairman'); }
+  if (/\b(holding\s+company|investment\s+holding|family\s+holding|group\s+holdings?)\b/i.test(text)) { score += 4; reasons.push('+4 holding co'); }
+  if (/\b(serial\s+entrepreneur|multiple\s+ventures|portfolio\s+of\s+companies)\b/i.test(text)) { score += 4; reasons.push('+4 multi-venture'); }
+  if (/\b(next\s+generation|second\s+generation|third\s+generation|2G|3G|family\s+council|family\s+enterprise)\b/i.test(text)) { score += 5; reasons.push('+5 succession'); }
+  if (/\b(succession|estate\s+planning|generational\s+(transition|wealth))\b/i.test(text)) { score += 4; reasons.push('+4 estate planning'); }
+  if (/\b(CFO|chief\s+financial\s+officer|finance\s+director)\b/i.test(text) && /\b(corporate|industries|holdings|group|enterprise|company|midcap|mid-cap)\b/i.test(text)) { score += 4; reasons.push('+4 corporate CFO'); }
+  if (/\b(pre-?IPO|going\s+public|capital\s+raise|growth\s+equity|series\s+[CDE]|M&A\s+advisory|mergers\s+and\s+acquisitions)\b/i.test(text)) { score += 5; reasons.push('+5 capital markets activity'); }
+  if (/\b(distressed|special\s+situations|turnaround|workout|restructuring|debt-?for-?equity|recapitalization)\b/i.test(text)) { score += 5; reasons.push('+5 distressed/special sits'); }
+  if (/\b(general\s+partner|GP\s+at|fund\s+sponsor|launching\s+(a\s+)?(private\s+)?fund)\b/i.test(text)) { score += 5; reasons.push('+5 fund sponsor'); }
+  if (/\b(physical\s+commodity|commodity\s+(trader|trading)|energy\s+trading|metals\s+trading|grain\s+trader|fertili[sz]er\s+trader)\b/i.test(text)) { score += 5; reasons.push('+5 commodity trader'); }
+  if (/\b(hedging|hedge\s+fund|risk\s+management).*\b(commodity|commodities|energy|metals|agri)/i.test(text)) { score += 4; reasons.push('+4 hedging context'); }
   return { score, reasons };
 }
 
@@ -508,7 +523,7 @@ function renderRegionChips(regionCounts) {
 }
 
 async function main() {
-  console.log('FCIM Daily Build v7 - starting');
+  console.log('FCIM Daily Build v8.1 - starting');
   await checkApifyAccount();
   const buckets = pickTodaysQueries();
   console.log(`Today's buckets: ${buckets.map(b => b.label).join(' | ')}`);
