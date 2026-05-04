@@ -219,21 +219,28 @@ function normaliseProfile(raw) {
     ? `${raw.firstName || ''} ${raw.lastName || ''}`.trim()
     : (raw.fullName || raw.name || 'Name unavailable');
 
-  // Company: try multiple shapes
+  // Company: try multiple shapes including v9 schema (currentPositions array, plural)
   let company = '';
-  if (Array.isArray(raw.currentPosition) && raw.currentPosition[0]) {
+  let titleFromPosition = '';
+  // v9 schema: currentPositions = [{ companyName, title, ... }]
+  if (Array.isArray(raw.currentPositions) && raw.currentPositions[0]) {
+    company = raw.currentPositions[0].companyName || raw.currentPositions[0].company || raw.currentPositions[0].companyUrn || '';
+    titleFromPosition = raw.currentPositions[0].title || raw.currentPositions[0].position || '';
+  }
+  // older schema: currentPosition (singular)
+  if (!company && Array.isArray(raw.currentPosition) && raw.currentPosition[0]) {
     company = raw.currentPosition[0].companyName || raw.currentPosition[0].company || '';
   }
   if (!company) company = raw.currentCompany || raw.company || '';
-  // Fallback actor often embeds "@ Company" inside position/headline string — try to extract.
+  // Fallback: embedded "@ Company" inside position/headline string
   if (!company) {
-    const titleStr = raw.position || raw.headline || raw.title || '';
+    const titleStr = raw.position || raw.headline || raw.title || titleFromPosition || '';
     const atMatch = titleStr.match(/\s+(?:at|@)\s+(.+?)(?:[|·•]|$)/i);
     if (atMatch) company = atMatch[1].trim();
   }
 
-  // Title
-  const title = raw.headline || raw.title || raw.position || '';
+  // Title — prefer headline, then v9 currentPositions[0].title, then legacy fields
+  const title = raw.headline || titleFromPosition || raw.title || raw.position || '';
 
   // About / scoring text — concat summary, about, services array, topSkills so scoring has signal.
   const aboutParts = [];
@@ -384,7 +391,15 @@ function runCompliance(p) {
 function fingerprint(p) {
   // Prefer LinkedIn ID when available — it's globally unique. Falls back to name+company.
   if (p.publicIdentifier) return `li:${p.publicIdentifier.toLowerCase()}`;
-  if (p.linkedinUrl) return `url:${p.linkedinUrl.toLowerCase().replace(/[/?#].*$/, '')}`;
+  if (p.linkedinUrl) {
+    // Extract /in/{slug} from URL. Old regex was buggy (matched first slash → collapsed all to "url:https:").
+    const url = p.linkedinUrl.toLowerCase().trim();
+    const m = url.match(/linkedin\.com\/(?:in|pub)\/([^/?#]+)/);
+    if (m) return `li:${m[1]}`;
+    // Fallback: strip protocol + query/hash, keep the path.
+    const cleaned = url.replace(/^https?:\/\//, '').replace(/[?#].*$/, '').replace(/\/+$/, '');
+    return `url:${cleaned}`;
+  }
   const n = (p.name || '').toLowerCase().trim();
   const c = (p.company || '').toLowerCase().trim();
   if (!n) return '';
@@ -530,7 +545,7 @@ function renderRegionChips(regionCounts) {
 }
 
 async function main() {
-  console.log('FCIM Daily Build v9 - company-based - starting');
+  console.log('FCIM Daily Build v9.2 - dedupe fix - starting');
   await checkApifyAccount();
   const buckets = pickTodaysQueries();
   console.log(`Today's buckets: ${buckets.map(b => b.label).join(' | ')}`);
