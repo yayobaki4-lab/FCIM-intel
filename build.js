@@ -1,4 +1,4 @@
-/* FCIM Daily Intelligence - daily builder v11 */
+/* FCIM Daily Intelligence - daily builder v11.1 */
 const fs = require('node:fs');
 
 const APIFY_TOKEN = process.env.APIFY_TOKEN;
@@ -16,92 +16,111 @@ const QUALITY_THRESHOLD = 1;
 const MAX_HUNTER_CALLS_PER_RUN = 100;
 
 const QUERY_BUCKETS = [
-  // v11: SIZE-MATCHED to FCIM ($5.5B AUM) and a first-year RM's reachability.
+  // v11.1: TITLE + LOCATION based bucketing (was: COMPANIES list).
   //
-  // v10 targeted Houlihan, Rothschild, Trafigura, Vitol, Apex, Investcorp, Mubadala,
-  // TPG, Carlyle, Ares, Oaktree — all 10-80x larger than FCIM. Counterpart altitude
-  // is wrong, FCIM is a vendor not a peer, and a first-year RM cold-emailing a
-  // Partner at Ares does not get a meeting. v11 corrects this.
+  // v11 still hunted at named-firm scale — Gulf Capital, Waha, Mizuho, BECO, Aramex,
+  // Hassan Allam, Damac. All $500m+ revenue. Yehya is a first-year RM at $5.5B FCIM
+  // and these firms have entrenched tier-1 banking syndicates. Wrong-altitude counterparties.
   //
-  // FCIM's three CORE specialties remain: Distressed & Special Situations,
-  // Commodities & Natural Resources, Structuring (Funds & Transactions). But the
-  // FIRMS we hunt at are mid-market regional ones where FCIM is a peer or upmarket
-  // partner, not a downmarket vendor.
+  // The actual sweet spot for FCIM RM-led outreach is sub-scale: $10m-$200m AUM
+  // family offices, single-principal advisory boutiques, sole-founder fund managers,
+  // owner-operated small commodity traders, recently-launched single-fund managers.
   //
-  // Sweet-spot prospect firm = $50m-$2bn revenue / $200m-$5bn AUM, Dubai-resident
-  // decision-maker, Director-VP-MD altitude (not Partner / Group CEO / Board SEO).
+  // These shops cannot be found by company name (names are obscure or generic FZ-LLCs).
+  // They CAN be found by title + location: "Family Office Director Dubai",
+  // "Founder & Managing Director Dubai DMCC", "Single Family Office Principal".
   //
-  // Direct client targets (FCIM service buyers):
-  //  - Mid-market regional PE/AltInv shops ($200m-$3bn AUM)
-  //  - Mid-cap UAE / GCC family conglomerates ($100m-$1bn revenue, family-owned)
-  //  - DMCC mid-tier physical commodity traders (regional, not Trafigura-scale)
-  //  - Boutique SCA-licensed brokerages, EAMs, and wealth shops
-  //  - Owner-operated single family offices in Dubai
-  //  - Mid-cap MENA listed corporates (treasury / M&A / refinancing pain)
+  // v11.1 uses Apify currentJobTitles + locations params (harvestapi supports these).
   //
-  // Referral / partner targets (deal-flow sources for FCIM CORE specialties):
-  //  - DIFC/ADGM mid-tier law firms (special-sits and fund formation desks)
-  //  - Regional restructuring boutiques (not Big-4 Restructuring or Houlihan)
-  //  - Insolvency practitioners and trustees in DIFC Courts
-  //
-  // Note: any firm in COMPLIANCE_BLOCK (which now includes mega-PE, global
-  // commodity majors, global fund admins, and global IB advisors) is filtered
-  // post-fetch. Search may surface them; scoring drops them.
+  // Each bucket: ~25 profiles per run × 8 buckets = 200 raw → ~140 qualified after gates.
 
   {
-    label: 'Mid-Market Regional PE & Alternative Investment',
-    // $200m-$3bn AUM regional shops. Direct fund-formation and structuring buyers.
-    body: { companies: ['Gulf Capital', 'Waha Capital', 'NBK Capital Partners', 'Shorooq Partners', 'BECO Capital', 'Wamda Capital', 'Mizuho Gulf Capital Partners', 'Riyad Capital', 'Saudi Fransi Capital', 'GFH Financial Group'] },
-    region: null, serviceHint: 'Structuring (Private Funds)'
-  },
-  {
-    label: 'Mid-Cap UAE/GCC Family Conglomerates',
-    // Family-owned, $100m-$1bn revenue, active principals or 2G management.
-    // These are foundation/structuring/family-office buyers — not Majid Al Futtaim scale.
-    body: { companies: ['Thumbay Group', 'Choithrams', 'BinHendi Enterprises', 'Al Hokair Group', 'Al Naboodah Group', 'Belhasa Group', 'Rostamani Group', 'Al Habtoor Group', 'Saif Belhasa Holding', 'Galadari Brothers'] },
-    region: null, serviceHint: 'Foundation + Private Fund'
-  },
-  {
-    label: 'Egyptian / Levantine Mid-Cap Family Business',
-    // Egyptian + Levantine family conglomerates with Dubai presence. Ibrahim/Amr networks.
-    body: { companies: ['Hassan Allam Holding', 'Mansour Group', 'Mohamed Mansour', 'Sabbagh Holding', 'Joseph Group', 'BTI International', 'Saudi Bin Laden Group', 'Khalifa Algosaibi', 'Olayan Group', 'Bahwan Group'] },
-    region: null, serviceHint: 'Foundation + Private Fund'
-  },
-  {
-    label: 'DMCC Mid-Tier Physical Commodity Traders',
-    // Regional commodity traders with $50m-$1bn turnover. Real hedging buyers
-    // — not Trafigura/Vitol who use tier-1 banks. Targets: agri, metals, energy
-    // mid-tier shops with DMCC or DIFC presence.
-    body: { companies: ['Phoenix Commodities', 'Aston Agro', 'Agrocorp International', 'ETG Commodities', 'Hakan Agro', 'Mahsul Trading', 'Maviga Middle East', 'Alvean Sugar', 'Sucden Middle East', 'ED&F Man'] },
-    region: null, serviceHint: 'Commodities & Natural Resources'
-  },
-  {
-    label: 'Boutique EAM, SCA Brokers & Independent Wealth',
-    // Regulated UAE EAMs and SCA brokerages — direct EAM/FI Platform buyers.
-    // NOT competitor private banks. Smaller shops looking for backbone infra.
-    body: { companies: ['Holborn Assets', 'Globaleye Wealth Management', 'Mondial Dubai', 'AES International', 'Nexus Insurance Brokers', 'Continental Insurance Brokers', 'Acuma Wealth Management', 'Hoxton Capital', 'Lighthouse Capital', 'Killik & Co Dubai'] },
-    region: null, serviceHint: 'EAM / FI Platform'
-  },
-  {
-    label: 'Single Family Offices & Owner-Operated Holding Cos',
-    // Directly operated SFOs and family holding companies. Family Office Advisory
-    // and Foundation + Private Fund buyers.
-    body: { companies: ['Al Hamra Holding', 'Lunate', 'Royal Group', 'Al Futtaim Private Office', 'Al Sayegh Group', 'Al Bahar Family Office', 'Sharaf Group', 'Easa Saleh Al Gurg Group', 'Bukhatir Group', 'Juma Al Majid Group'] },
+    label: 'Single Family Office Principals — Dubai',
+    body: {
+      currentJobTitles: ['Family Office Principal', 'Family Office Director', 'Single Family Office Founder', 'Head of Single Family Office', 'Family Office Manager', 'Family Office Chief Investment Officer'],
+      locations: ['Dubai', 'United Arab Emirates'],
+      profileScraperMode: 'Full',
+      maxItems: 25
+    },
     region: null, serviceHint: 'Family Office Advisory'
   },
   {
-    label: 'Mid-Cap MENA Listed Corporate Treasury & CFO',
-    // CFOs and group treasury heads at mid-cap listed MENA corporates ($200m-$2bn cap).
-    // Treasury hedging + structuring buyers.
-    body: { companies: ['Agility Public Warehousing', 'Aramex', 'GFH Financial Group', 'Gulf Navigation', 'Drake & Scull', 'Damac Properties', 'Deyaar Development', 'Aldar Properties', 'Union Properties', 'Eshraq Investments'] },
-    region: null, serviceHint: 'IB & Advisory'
+    label: 'Founder-Operated Investment Boutiques — DIFC/ADGM',
+    body: {
+      currentJobTitles: ['Managing Partner', 'Founder & Managing Partner', 'Founder & CEO', 'Founder Partner', 'Owner & Director', 'Founder Director'],
+      locations: ['Dubai International Financial Centre', 'Abu Dhabi Global Market', 'Dubai', 'Abu Dhabi'],
+      profileScraperMode: 'Full',
+      maxItems: 25,
+      // search keyword narrows to investment boutiques (vs random startups)
+      search: 'investment advisory boutique'
+    },
+    region: null, serviceHint: 'Structuring (Private Funds)'
   },
   {
-    label: 'DIFC/ADGM Mid-Tier Law & Insolvency Practitioners',
-    // Mid-tier law firms (not Magic Circle) with structured-finance, fund-formation,
-    // and insolvency practices. Referral partners for FCIM CORE specialties.
-    body: { companies: ['BSA Ahmad Bin Hezeem', 'Galadari Advocates', 'Hadef & Partners', 'Al Tamimi & Company', 'Afridi & Angell', 'Bin Shabib & Associates', 'Charles Russell Speechlys', 'Bracewell', 'Stephenson Harwood DIFC', 'Hourani & Partners'] },
-    region: null, serviceHint: 'Distressed & Special Situations'
+    label: 'Sub-$200m AUM Sole-Founder Fund Managers',
+    body: {
+      currentJobTitles: ['Fund Manager', 'Portfolio Manager', 'Founder & Fund Manager', 'CIO & Founder', 'Chief Investment Officer'],
+      locations: ['Dubai', 'United Arab Emirates'],
+      profileScraperMode: 'Full',
+      maxItems: 25,
+      search: 'private fund hedge fund boutique'
+    },
+    region: null, serviceHint: 'Structuring (Private Funds)'
+  },
+  {
+    label: 'DMCC/DIFC Owner-Operated Commodity Traders',
+    body: {
+      currentJobTitles: ['Founder & CEO', 'Owner & Director', 'Managing Director', 'Founder', 'Director'],
+      locations: ['Dubai Multi Commodities Centre', 'DMCC', 'Dubai'],
+      profileScraperMode: 'Full',
+      maxItems: 25,
+      search: 'commodity trader physical trader DMCC oilseed grain metals fertilizer'
+    },
+    region: null, serviceHint: 'Commodities & Natural Resources'
+  },
+  {
+    label: 'Independent Wealth Advisors & EAMs — Dubai',
+    body: {
+      currentJobTitles: ['Independent Wealth Manager', 'Independent Financial Advisor', 'External Asset Manager', 'Founder & Wealth Advisor', 'Managing Partner', 'Senior Partner'],
+      locations: ['Dubai', 'United Arab Emirates'],
+      profileScraperMode: 'Full',
+      maxItems: 25,
+      search: 'independent wealth advisor EAM boutique'
+    },
+    region: null, serviceHint: 'EAM / FI Platform'
+  },
+  {
+    label: 'UAE/GCC Mid-Cap Family Business — Founders & 2G Principals',
+    body: {
+      currentJobTitles: ['Founder & Managing Director', 'Founder & Chairman', 'Director', 'Vice Chairman', 'Group Director'],
+      locations: ['Dubai', 'Sharjah', 'Abu Dhabi', 'United Arab Emirates'],
+      profileScraperMode: 'Full',
+      maxItems: 25,
+      search: 'family business holding founder second generation'
+    },
+    region: null, serviceHint: 'Foundation + Private Fund'
+  },
+  {
+    label: 'Russian/CIS Founder-Principals in Dubai',
+    body: {
+      currentJobTitles: ['Founder & CEO', 'Owner', 'Founder', 'Managing Director', 'Chief Investment Officer'],
+      locations: ['Dubai', 'United Arab Emirates'],
+      profileScraperMode: 'Full',
+      maxItems: 25,
+      search: 'Russian Kazakh Belarus Ukrainian relocated entrepreneur'
+    },
+    region: null, serviceHint: 'Foundation + Private Fund'
+  },
+  {
+    label: 'Indian Sub-Continent Founder-Principals — Dubai',
+    body: {
+      currentJobTitles: ['Founder & Managing Director', 'Founder', 'Owner & Director', 'Group Managing Director'],
+      locations: ['Dubai', 'United Arab Emirates'],
+      profileScraperMode: 'Full',
+      maxItems: 25,
+      search: 'Indian family business trading import export Dubai DMCC'
+    },
+    region: null, serviceHint: 'Foundation + Private Fund'
   }
 ];
 
@@ -410,10 +429,28 @@ function scoreProfile(p) {
     score += 3; reasons.push('+3 AUM');
   }
 
-  // v11 size-matched boosts — only firms where FCIM is a peer or upmarket partner
-  // (NOT a downmarket vendor). These are the new mid-market regional targets.
-  const targetFirmsV11 = /\b(gulf\s+capital|waha\s+capital|NBK\s+capital|shorooq\s+partners|BECO\s+capital|wamda\s+capital|mizuho\s+gulf\s+capital|riyad\s+capital|saudi\s+fransi\s+capital|GFH\s+financial|thumbay\s+group|choithram|binhendi|al\s+hokair|al\s+naboodah|belhasa\s+group|rostamani|al\s+habtoor|saif\s+belhasa|galadari\s+brothers|hassan\s+allam|mansour\s+group|sabbagh\s+holding|joseph\s+group|BTI\s+international|olayan\s+group|bahwan\s+group|phoenix\s+commodities|aston\s+agro|agrocorp|ETG\s+commodities|hakan\s+agro|maviga|alvean\s+sugar|sucden\s+middle\s+east|ED&F\s+man|holborn\s+assets|globaleye|mondial\s+dubai|AES\s+international|nexus\s+insurance|continental\s+insurance|acuma\s+wealth|hoxton\s+capital|al\s+hamra\s+holding|lunate|royal\s+group|al\s+sayegh|al\s+bahar\s+family|sharaf\s+group|easa\s+saleh\s+al\s+gurg|bukhatir\s+group|juma\s+al\s+majid|agility|aramex|gulf\s+navigation|drake\s+&\s+scull|damac|deyaar|aldar|union\s+properties|eshraq|BSA\s+ahmad|galadari\s+advocates|hadef\s+&\s+partners|al\s+tamimi|afridi\s+&\s+angell|bin\s+shabib|charles\s+russell|bracewell|stephenson\s+harwood|hourani)\b/i;
-  if (targetFirmsV11.test(text)) { score += 5; reasons.push('+5 v11 mid-market target firm'); }
+  // v11.1 SMALL-SHOP boost — title and firm signals that indicate sub-scale prospects.
+  // Founder/principal-level titles at single-fund or single-family-office shops are
+  // FCIM's actual sweet spot. v11 boosted Gulf Capital/Waha/Hassan Allam — those
+  // are now NEUTRAL (no boost, no penalty) because they were too big.
+  const smallShopTitles = /\b(founder\s*&?\s*managing\s+director|founder\s*&?\s*CEO|founder\s+partner|founder\s+director|owner\s*&?\s*director|owner\s*&?\s*founder|sole\s+founder|single\s+family\s+office|family\s+office\s+(principal|director|CIO|head|founder)|managing\s+partner|founding\s+partner|principal)\b/i;
+  if (smallShopTitles.test(text)) {
+    score += 6; reasons.push('+6 founder/principal small-shop title');
+  }
+
+  // v11.1 SMALL-FIRM SIGNALS — bio language that suggests sub-scale shop
+  const smallFirmSignals = /\b(boutique|family[- ]office|single[- ]family[- ]office|SFO|sole\s+founder|launched\s+(my|our)\s+own|first\s+fund|fund\s+I|FZ-?LLC|started\s+in\s+\d{4}|established\s+in\s+\d{4}|founded\s+in\s+\d{4})\b/i;
+  if (smallFirmSignals.test(text)) {
+    score += 4; reasons.push('+4 small-firm bio signal');
+  }
+
+  // v11.1 LARGE-FIRM PENALTY — these surfaced in v11 results but are too big.
+  // Now penalized rather than boosted. Names retained from v11 target list since
+  // title-based search may still surface them.
+  const tooLargeForRM = /\b(gulf\s+capital|waha\s+capital|NBK\s+capital|shorooq\s+partners|BECO\s+capital|wamda\s+capital|mizuho\s+gulf\s+capital|riyad\s+capital|saudi\s+fransi\s+capital|GFH\s+financial|thumbay\s+group|al\s+habtoor|hassan\s+allam|orascom|mansour\s+group|olayan\s+group|sabbagh|aramex|damac|aldar|deyaar|al\s+tamimi|stephenson\s+harwood|hadef\s+&\s+partners|charles\s+russell|investcorp|ARDIAN|wamda)\b/i;
+  if (tooLargeForRM.test(text)) {
+    score -= 4; reasons.push('-4 firm too large for first-year-RM cold (v11.1)');
+  }
 
   // v11 PROPORTIONALITY PENALTY — global mega-firms surfaced despite COMPLIANCE_BLOCK.
   // Belt-and-suspenders: compliance kills these, but if anything slips through, score
@@ -433,11 +470,11 @@ function scoreProfile(p) {
     score -= 6; reasons.push('-6 seniority mismatch (Yehya altitude)');
   }
 
-  // v11 SWEET-SPOT TITLE BOOST — Director / VP / MD-at-small-firm / Head of [Function]
-  // at mid-market firms is exactly Yehya's altitude.
+  // v11.1 SWEET-SPOT TITLE at SMALL FIRM — Director / VP / Head of [Function]
+  // at a small shop (not at a mega firm). Combined boost.
   const sweetSpotTitle = /\b(director|vice\s+president|VP\b|head\s+of\s+(finance|treasury|corporate\s+development|M&A|investments|portfolio|structured|risk)|principal|associate\s+director|senior\s+manager)\b/i;
-  if (sweetSpotTitle.test(text) && targetFirmsV11.test(text)) {
-    score += 4; reasons.push('+4 sweet-spot title at target firm');
+  if (sweetSpotTitle.test(text) && smallShopTitles.test(text)) {
+    score += 3; reasons.push('+3 sweet-spot title at small shop');
   }
 
   // ============ NEGATIVE SIGNALS ============
@@ -1013,7 +1050,7 @@ document.querySelectorAll('.service-chip').forEach(c => {
 </body></html>`;
 
 async function main() {
-  console.log('FCIM Daily Build v11 - size-matched mid-market targets + council prompt - starting');
+  console.log('FCIM Daily Build v11.1 - title+location buckets, founder-scale prospects - starting');
   await checkApifyAccount();
   const buckets = pickTodaysQueries();
   console.log(`Today's buckets: ${buckets.map(b => b.label).join(' | ')}`);
