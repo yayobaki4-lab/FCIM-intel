@@ -16,48 +16,59 @@ const QUALITY_THRESHOLD = 1;
 const MAX_HUNTER_CALLS_PER_RUN = 25;
 
 const QUERY_BUCKETS = [
-  // v9: company-based scraping. Each bucket lists firms that DEFINITELY employ
-  // FCIM-target prospects in Dubai. We exclude FCIM compliance-blocked banks
-  // (Mashreq, Emirates NBD, Arqaam, Index & Cie, Skybound).
+  // v10: aligned to FCIM's Corporate Profile 2026.
+  // FCIM is "built for complexity" — three core specialties: Distressed & Special
+  // Situations, Commodities & Natural Resources, Structuring (Funds & Transactions).
+  // Wealth Management and IB&Advisory are ADDITIONAL capabilities, not core.
+  // Therefore prospects are: people who BRING complex situations FCIM solves.
+  // We DROP the major private banks (competitors, not clients) and instead target:
+  //  - Restructuring/special-sit advisors at IBs (referral partners for distressed deals)
+  //  - Physical commodity traders (direct clients for derivatives platform)
+  //  - Fund admin & MFO operators (referral partners for structuring)
+  //  - PE/VC sponsors (direct clients for fund formation)
+  //  - Indian/Lebanese/Egyptian-origin family conglomerates (direct clients)
+  //  - Boutique EAM/independent wealth shops (FI Platform clients)
+  //  - Distressed/special-situations capital funds (direct clients)
+  //  - Mid-market corporate development (IB & Advisory clients)
   {
-    label: 'Swiss Private Banks Dubai',
-    body: { companies: ['Julius Baer', 'Lombard Odier', 'Pictet', 'EFG International', 'UBS', 'Mirabaud'] },
-    region: null, serviceHint: 'Discretionary Portfolio Management'
+    label: 'Restructuring & Special Situations Advisors',
+    body: { companies: ['Houlihan Lokey', 'Rothschild & Co', 'Lazard', 'AlixPartners', 'FTI Consulting', 'Alvarez & Marsal', 'PJT Partners', 'Kroll'] },
+    region: null, serviceHint: 'Distressed & Special Situations'
   },
   {
-    label: 'Global Private Banks Dubai',
-    body: { companies: ['HSBC Private Banking', 'BNP Paribas Wealth Management', 'Standard Chartered Private Bank', 'Deutsche Bank Wealth Management', 'Citi Private Bank', 'Barclays Private Bank'] },
-    region: null, serviceHint: 'Discretionary Portfolio Management'
+    label: 'Physical Commodity Traders',
+    body: { companies: ['Trafigura', 'Vitol', 'Glencore', 'Mercuria', 'Gunvor', 'Cargill', 'Bunge', 'Olam International'] },
+    region: null, serviceHint: 'Commodities & Natural Resources'
   },
   {
-    label: 'Multi-Family Offices Dubai',
-    body: { companies: ['Stonehage Fleming', 'Lombard International', 'Bedrock Group', 'Maitland Group', 'Apex Group', 'IQ-EQ'] },
-    region: null, serviceHint: 'Family Office Advisory'
+    label: 'Fund Admin & MFO Operators',
+    body: { companies: ['Stonehage Fleming', 'Apex Group', 'IQ-EQ', 'Maitland Group', 'Hawksford', 'Vistra', 'TMF Group', 'Trident Trust'] },
+    region: null, serviceHint: 'Structuring (Private Funds)'
   },
   {
-    label: 'Investment Banks & Boutiques Dubai',
-    body: { companies: ['Rothschild & Co', 'Lazard', 'Houlihan Lokey', 'Moelis & Company', 'Evercore', 'Perella Weinberg Partners'] },
-    region: null, serviceHint: 'IB & Advisory'
+    label: 'PE / VC Sponsors',
+    body: { companies: ['Investcorp', 'Gulf Capital', 'NBK Capital Partners', 'Waha Capital', 'Mubadala Capital', 'Ardian', 'The Carlyle Group', 'TPG'] },
+    region: null, serviceHint: 'Structuring (Private Funds)'
   },
   {
-    label: 'PE / Asset Managers Dubai',
-    body: { companies: ['Investcorp', 'Gulf Capital', 'Abraaj', 'NBK Capital Partners', 'Waha Capital', 'Mubadala Capital'] },
-    region: null, serviceHint: 'CMA Private Fund (standalone)'
+    label: 'Indian-Origin Family Conglomerates',
+    body: { companies: ['Lulu Group International', 'Landmark Group', 'Apparel Group', 'Sharaf Group', 'Choithrams', 'GEMS Education', 'Aster DM Healthcare', 'Thumbay Group'] },
+    region: null, serviceHint: 'Foundation + Private Fund'
   },
   {
-    label: 'Commodity Traders Dubai',
-    body: { companies: ['Trafigura', 'Vitol', 'Glencore', 'Mercuria', 'Gunvor', 'Cargill'] },
-    region: null, serviceHint: 'Commodity Derivatives'
+    label: 'Lebanese / Egyptian / Levantine Business',
+    body: { companies: ['Sabbagh Holding', 'Joseph Group', 'Ezz Steel', 'Orascom Construction', 'Mansour Group', 'Hassan Allam Holding', 'BTI International', 'CCC Consolidated Contractors'] },
+    region: null, serviceHint: 'Foundation + Private Fund'
   },
   {
-    label: 'DIFC Wealth Boutiques',
-    body: { companies: ['Mashreq Capital', 'NBK Wealth', 'ADCB Asset Management', 'Daman Investments', 'SHUAA Capital', 'Al Mal Capital'] },
+    label: 'Boutique EAM & Independent Wealth',
+    body: { companies: ['Holborn Assets', 'Lighthouse Capital', 'Ocean Wall', 'Globaleye Wealth Management', 'Killik & Co', 'Quintet Private Bank', 'Stanhope Capital', 'LGT Vestra'] },
     region: null, serviceHint: 'EAM / FI Platform'
   },
   {
-    label: 'Family Holding Companies Dubai',
-    body: { companies: ['Al-Futtaim Group', 'Al Habtoor Group', 'Majid Al Futtaim', 'Galadari Brothers', 'Juma Al Majid Group', 'Al Naboodah Group'] },
-    region: null, serviceHint: 'Foundation + Private Fund'
+    label: 'Distressed Capital & Special Situations Funds',
+    body: { companies: ['Davidson Kempner Capital Management', 'Värde Partners', 'Ares Management', 'Brevet Capital', 'Cerberus Capital Management', 'Sculptor Capital', 'Centerbridge Partners', 'Oaktree Capital Management'] },
+    region: null, serviceHint: 'Distressed & Special Situations'
   }
 ];
 
@@ -68,14 +79,16 @@ function pickTodaysQueries() {
 }
 
 const SERVICES = [
-  { name: 'Discretionary Portfolio Management', desc: 'CMA-approved discretionary mandates for HNWIs, family offices, PICs, and institutions.', solution: 'Discretionary portfolio management with strategic asset allocation, manager selection, and risk-resilient execution. Customized to risk profile and time horizon.' },
+  // Three CORE specialties (per Corporate Profile 2026)
+  { name: 'Distressed & Special Situations', desc: 'FCIM core specialty. Disciplined underwriting and active engagement around distressed credit, recapitalizations, and workouts.', solution: 'Distressed and special situations expertise — disciplined underwriting, active engagement around recapitalizations, debt-for-equity, and discounted secondary acquisitions. We unlock value where traditional investors are constrained by scale, process, or risk appetite.' },
+  { name: 'Commodities & Natural Resources', desc: 'FCIM core specialty. SCA-licensed direct access to CME, ICE, LME, EEX, SGX. Hedging, structured trade, supply-chain-linked equity strategies.', solution: 'SCA-licensed commodity derivatives platform with direct exchange access (CME, ICE, LME, EEX, SGX). Hedging across energy, metals, agri, freight, environmental products — without client maintaining own clearing relationships. Combined with physical-market insight and supply-chain-linked equity strategies.' },
+  { name: 'Structuring (Private Funds)', desc: 'FCIM core specialty. CMA-approved private funds in 10 business days. Foundation + Private Fund stack for UBO privacy and founder control.', solution: 'CMA-approved private fund formation in 10 business days. Optional UAE Foundation as parent for UBO privacy (only FCIM and CMA know the UBO). 100% asset-class concentration permitted. Direct investor representation on fund board / Investment Committee.' },
+  // Additional capabilities
   { name: 'Foundation + Private Fund', desc: 'UAE Foundation owning a CMA Private Fund. UBO privacy, founder control, 10-day formation.', solution: 'UAE Foundation owning a CMA Private Fund. Only FCIM and CMA know the UBO. Founder retains control via Charter and By-laws.' },
-  { name: 'CMA Private Fund (standalone)', desc: 'Regulated UAE private fund. No asset-class restrictions. Fast-track 10-day CMA approval.', solution: 'Standalone CMA Private Fund. Free from restrictions on asset type, single-asset concentration up to 100%, simplified KYC, dual control levels.' },
-  { name: 'Commodity Derivatives', desc: 'SCA-licensed direct access to CME, ICE, LME, EEX, SGX. No need for own clearing account.', solution: 'SCA-licensed commodity derivatives platform. Direct exchange access (CME, ICE, LME, EEX, SGX) and clearing without client maintaining own clearing relationships. Hedging across energy, metals, agri, freight, environmental products.' },
-  { name: 'Fund Administration', desc: 'One of only five UAE-authorised fund administrators. In-house and third-party funds.', solution: 'Fund administration for in-house or third-party funds, UAE or foreign-domiciled. NAV, transparent reporting, regulatory oversight.' },
-  { name: 'IB & Advisory', desc: 'Dmitri Tchekalkine-led desk. ECM, DCM, M&A, valuations, regulatory advisory. $50M-$150M deals.', solution: 'Investment banking and advisory: ECM (IPOs, rights issues), DCM (bonds, sukuk), M&A end-to-end, valuations and feasibility, CMA/ADX/DFM regulatory advisory.' },
+  { name: 'IB & Advisory', desc: 'Tim Almashat-led desk. ECM, DCM, M&A, valuations, regulatory advisory. $50M-$150M deals.', solution: 'Investment banking and advisory: ECM (IPOs, rights issues), DCM (bonds, sukuk), M&A end-to-end, valuations and feasibility, CMA/ADX/DFM regulatory advisory.' },
   { name: 'Family Office Advisory', desc: 'Governance, multi-generational succession, estate planning, concierge, VC/PE direct deals.', solution: 'Full family office build covering governance, succession, estate, concierge, and direct deal access. Cross-border execution with discretion.' },
-  { name: 'EAM / FI Platform', desc: 'Confidential Client Money accounts at FAB and ENBD. Platform for EAMs and FIs.', solution: 'EAM/FI platform with Confidential Client Money accounts at FAB and ENBD. FCIM acts as secondary custodian; EAMs leverage platform for client mandates.' }
+  { name: 'EAM / FI Platform', desc: 'Confidential Client Money accounts at FAB. Platform for EAMs and FIs.', solution: 'EAM/FI platform with Confidential Client Money accounts at FAB. FCIM acts as secondary custodian; EAMs leverage platform for client mandates.' },
+  { name: 'Discretionary Portfolio Management', desc: 'CMA-approved discretionary mandates for HNWIs, family offices, PICs, and institutions.', solution: 'Discretionary portfolio management with strategic asset allocation, manager selection, and risk-resilient execution. Customized to risk profile and time horizon.' }
 ];
 
 const PROBLEMS = [
@@ -93,13 +106,13 @@ const PROBLEMS = [
     fcimService: 'Family Office Advisory', angle: 'Family succession and generational transition - full family-office build covering governance, succession, estate, concierge.' },
   { id: 'commodity-hedging', label: 'Physical commodity exposure without hedging infrastructure',
     signals: [/\b(physical\s+(commodity|trader|trading))\b/i, /\b(grain|fertili[sz]er|freight|metals|energy|oilseed|sugar|cocoa|coffee|cotton)\s+(trad|import|export)/i, /\b(hedging|risk\s+management)\b.*\b(commodity|commodities|metals|energy|grain)/i, /\b(import|export)\s+(business|operations|trader)\b/i],
-    fcimService: 'Commodity Derivatives', angle: 'Physical commodity exposure without exchange-cleared hedging - FCIM SCA-licensed platform gives direct CME/ICE/LME/EEX/SGX access without clearing account.' },
+    fcimService: 'Commodities & Natural Resources', angle: 'Physical commodity exposure without exchange-cleared hedging - FCIM SCA-licensed platform gives direct CME/ICE/LME/EEX/SGX access without clearing account.' },
   { id: 'eam-platform-need', label: 'EAM / boutique wealth manager looking for client-money platform',
     signals: [/\b(external\s+asset\s+manager|EAM)\b/i, /\b(independent\s+(wealth|financial)\s+(manager|advisor))\b/i, /\b(boutique|managing\s+partner).*\b(wealth|advisory|asset\s+management)/i, /\b(family\s+wealth\s+advisor|multi-?family\s+office\s+founder)\b/i],
     fcimService: 'EAM / FI Platform', angle: 'EAM looking for a regulated platform - FCIM provides Confidential Client Money accounts at FAB and ENBD with FCIM as secondary custodian.' },
   { id: 'fund-launch-or-admin', label: 'Fund launching or needing admin upgrade',
     signals: [/\b(launching|launched|new)\s+(fund|vehicle)/i, /\b(general\s+partner|GP\s+at|fund\s+manager)\b/i, /\b(fund\s+(admin|administrator|administration|services))\b/i, /\b(NAV|fund\s+accounting|fund\s+operations)\b/i],
-    fcimService: 'Fund Administration', angle: 'Fund launch or admin pain - FCIM is one of only five UAE-authorised fund administrators.' },
+    fcimService: 'Structuring (Private Funds)', angle: 'Fund launch or admin pain - FCIM is one of only five UAE-authorised fund administrators.' },
   { id: 'pre-ipo-or-ma', label: 'Pre-IPO or M&A advisory candidate',
     signals: [/\b(pre-?IPO|going\s+public|listing\s+plans)\b/i, /\b(M&A|mergers|acquisitions)\s+(advisor|target|strategy)/i, /\b(capital\s+raise|growth\s+equity|series\s+[CDE])\b/i, /\b(corporate\s+finance|capital\s+markets)\s+(director|head|managing)/i],
     fcimService: 'IB & Advisory', angle: 'Capital-markets activity ahead - FCIM IB desk (Dmitri Tchekalkine, 30+ years EM banking) covers ECM, DCM, M&A, UAE listings.' },
@@ -111,7 +124,7 @@ const PROBLEMS = [
     fcimService: 'Foundation + Private Fund', angle: 'Banking friction due to nationality/jurisdiction - UAE-regulated Foundation + Private Fund stack restores banking access while preserving privacy.' },
   { id: 'distressed-special', label: 'Distressed credit / special situations sponsor',
     signals: [/\b(distressed|special\s+situations|turnaround|workout|restructuring)\b/i, /\b(debt-?for-?equity|recapitalization|bankruptcy|chapter\s+11)\b/i, /\b(secondary\s+(market|acquisition)|opportunistic\s+credit)\b/i],
-    fcimService: 'Discretionary Portfolio Management', angle: 'Distressed and special situations expertise - FCIM specializes in disciplined underwriting, active engagement, and structuring around recapitalizations and workouts.' }
+    fcimService: 'Distressed & Special Situations', angle: 'Distressed and special situations expertise - FCIM specializes in disciplined underwriting, active engagement, and structuring around recapitalizations and workouts.' }
 ];
 
 const REGIONS = [
@@ -132,7 +145,10 @@ const COMPLIANCE_BLOCK = [
   /\barqaam\s+capital\b/i,
   /\b(mashreq|emirates\s+nbd|enbd)\b/i,
   /\bindex\s+&\s+cie\b/i,
-  /\bskybound\s+wealth\b/i
+  /\bskybound\s+wealth\b/i,
+  // v10: existing FCIM relationships / direct competitors — exclude from prospect list
+  /\bjulius\s+baer\b/i,
+  /\bEFG\s+(international|bank|hermes)\b/i
 ];
 const COMPLIANCE_WARN = /\b(PEP|politically\s+exposed|state[- ]owned|sovereign\s+wealth|minister|ambassador)\b/i;
 
@@ -282,50 +298,115 @@ function normaliseProfile(raw) {
 function scoreProfile(p) {
   const text = `${p.title} ${p.company} ${p.about}`.toLowerCase();
   let score = 0; const reasons = [];
-  if (/\b(family\s+office|single\s+family\s+office|multi[- ]family\s+office)\b/i.test(text)) { score += 6; reasons.push('+6 family office'); }
-  if (/\b(private\s+banker|wealth\s+manager|wealth\s+advisor|private\s+banking)\b/i.test(text)) { score += 5; reasons.push('+5 wealth/PB title'); }
-  if (/\b(managing\s+partner|managing\s+director|founding\s+partner|general\s+partner)\b/i.test(text)) { score += 4; reasons.push('+4 senior partner'); }
-  // Strict: only match full investment-CIO phrase, or bare 'CIO' WITH another wealth/finance keyword nearby.
+
+  // ============ FCIM CORE SPECIALTY MATCHES (high boost) ============
+  // 1. Distressed & Special Situations
+  if (/\b(distressed|special\s+situations?|turnaround|workout|restructuring|debt-?for-?equity|recapitalization)\b/i.test(text)) {
+    score += 8; reasons.push('+8 distressed/special sits (CORE)');
+  }
+  if (/\b(special\s+situation\s+group|restructuring\s+(advisor|advisory|group)|capital\s+solutions)\b/i.test(text)) {
+    score += 6; reasons.push('+6 restructuring practice');
+  }
+  // 2. Commodities & Natural Resources
+  if (/\b(physical\s+commodity|commodity\s+(trader|trading)|energy\s+trading|metals\s+trading|grain\s+trader|fertili[sz]er\s+trader|crude\s+oil\s+trader|oil\s+trader|freight\s+trader|agri\s+(commod|trader))\b/i.test(text)) {
+    score += 8; reasons.push('+8 commodity trader (CORE)');
+  }
+  if (/\b(hedging|hedge|risk\s+management).*\b(commodity|commodities|energy|metals|agri|freight)/i.test(text)) {
+    score += 5; reasons.push('+5 hedging context');
+  }
+  // 3. Structuring (Private Funds)
+  if (/\b(general\s+partner|GP\s+at|fund\s+sponsor|launching\s+(a\s+)?(private\s+)?fund|fund\s+formation|fund\s+structuring)\b/i.test(text)) {
+    score += 7; reasons.push('+7 fund sponsor (CORE)');
+  }
+  if (/\b(fund\s+administration|fund\s+admin|MFO\s+operator|multi-?family\s+office\s+(director|head|principal))\b/i.test(text)) {
+    score += 5; reasons.push('+5 fund admin / MFO operator');
+  }
+
+  // ============ ADDITIONAL CAPABILITY MATCHES (medium boost) ============
+  if (/\b(family\s+office\s+(principal|founder|head|director))\b/i.test(text)) {
+    score += 6; reasons.push('+6 family office principal');
+  }
+  if (/\b(group\s+chairman|chairman\s+of\s+the\s+board|family\s+business\s+chairman|managing\s+director\s+&?\s*founder)\b/i.test(text)) {
+    score += 5; reasons.push('+5 chairman/founder');
+  }
+  if (/\b(holding\s+company|investment\s+holding|family\s+holding|group\s+holdings?)\b/i.test(text)) {
+    score += 4; reasons.push('+4 holding co');
+  }
+  if (/\b(serial\s+entrepreneur|multiple\s+ventures|portfolio\s+of\s+companies)\b/i.test(text)) {
+    score += 4; reasons.push('+4 multi-venture');
+  }
+  if (/\b(next\s+generation|second\s+generation|third\s+generation|2G|3G|family\s+council|family\s+enterprise)\b/i.test(text)) {
+    score += 5; reasons.push('+5 succession');
+  }
+  if (/\b(succession|estate\s+planning|generational\s+(transition|wealth))\b/i.test(text)) {
+    score += 4; reasons.push('+4 estate planning');
+  }
+  if (/\b(CFO|chief\s+financial\s+officer|finance\s+director|head\s+of\s+(finance|corporate\s+finance))\b/i.test(text) && /\b(corporate|industries|holdings|group|enterprise|company|midcap|mid-cap)\b/i.test(text)) {
+    score += 5; reasons.push('+5 corporate CFO');
+  }
+  if (/\b(pre-?IPO|going\s+public|capital\s+raise|growth\s+equity|series\s+[CDE]|M&A\s+advisory|mergers\s+and\s+acquisitions)\b/i.test(text)) {
+    score += 5; reasons.push('+5 capital markets activity');
+  }
+  if (/\b(external\s+asset\s+manager|EAM|independent\s+wealth)\b/i.test(text)) {
+    score += 5; reasons.push('+5 EAM');
+  }
+  if (/\b(AED|USD|EUR)\s*\d+\s*(million|billion|mn|bn)\b/i.test(text) || /\b\$\s*\d+\s*(million|billion|mn|bn|m|b)\b/i.test(text)) {
+    score += 3; reasons.push('+3 monetary scale');
+  }
+  if (/\b(assets\s+under\s+management|AUM|managed.*portfolio)/i.test(text)) {
+    score += 3; reasons.push('+3 AUM');
+  }
+
+  // v10 trusted-firm boost — only for FCIM-target firms (NOT private banks)
+  const targetFirms = /\b(houlihan\s+lokey|rothschild|lazard|alixpartners|FTI\s+consulting|alvarez|moelis|evercore|perella|PJT\s+partners|kroll|trafigura|vitol|glencore|mercuria|gunvor|cargill|bunge|olam|stonehage|maitland|apex\s+group|IQ-?EQ|hawksford|vistra|TMF|trident\s+trust|investcorp|gulf\s+capital|NBK\s+capital|waha|mubadala\s+capital|ardian|carlyle|TPG|davidson\s+kempner|v\u00e4rde|varde|ares\s+management|brevet|cerberus|sculptor|centerbridge|oaktree|lulu\s+group|landmark\s+group|apparel\s+group|sharaf|choithram|GEMS\s+education|aster|thumbay|sabbagh|joseph\s+group|ezz\s+steel|orascom|mansour\s+group|hassan\s+allam|BTI|CCC|holborn|lighthouse\s+capital|ocean\s+wall|globaleye|killik|quintet|stanhope|LGT\s+vestra)\b/i;
+  if (targetFirms.test(text)) { score += 5; reasons.push('+5 target firm'); }
+
+  // ============ NEGATIVE SIGNALS ============
+  // Wealth manager / private banker AT a competitor private bank — these are competition, not prospects
+  const competitorPrivateBanks = /\b(julius\s+baer|EFG\s+(international|bank)|UBS|lombard\s+odier|pictet|mirabaud|HSBC\s+private|BNP\s+paribas\s+wealth|standard\s+chartered\s+private|deutsche\s+bank\s+wealth|citi\s+private|barclays\s+private)\b/i;
+  const wealthTitle = /\b(private\s+banker|wealth\s+manager|wealth\s+advisor|relationship\s+manager|client\s+advisor|investment\s+advisor)\b/i;
+  if (competitorPrivateBanks.test(text) && wealthTitle.test(text)) {
+    score -= 5; reasons.push('-5 wealth title at competitor private bank');
+  }
+
+  // CIO disambiguation: investment vs IT
   if (/\b(chief\s+investment\s+officer|head\s+of\s+investment)\b/i.test(text)) {
-    score += 5; reasons.push('+5 CIO');
+    score += 5; reasons.push('+5 investment CIO');
   } else if (/\bCIO\b/i.test(text) && /\b(wealth|asset|fund|portfolio|investment|family\s+office|capital|private\s+bank)/i.test(text)) {
     score += 5; reasons.push('+5 CIO (with finance context)');
   }
-  // Penalty: if profile has 'CIO' but ALSO IT context, it's a Chief Information Officer.
   if (/\bCIO\b/i.test(text) && /\b(information\s+technology|IT\s+infrastructure|ERP|cloud\s+migration|cybersecurity|software\s+engineering|digital\s+transformation)\b/i.test(text)) {
     score -= 6; reasons.push('-6 IT-CIO not investment');
   }
-  if (/\b(fund\s+manager|portfolio\s+manager|hedge\s+fund|private\s+equity|venture\s+capital)\b/i.test(text)) { score += 4; reasons.push('+4 fund/PM'); }
-  if (/\b(external\s+asset\s+manager|EAM|independent\s+wealth)\b/i.test(text)) { score += 5; reasons.push('+5 EAM'); }
-  if (/\b(AED|USD|EUR)\s*\d+\s*(million|billion|mn|bn)\b/i.test(text) || /\b\$\s*\d+\s*(million|billion|mn|bn|m|b)\b/i.test(text)) { score += 3; reasons.push('+3 monetary scale'); }
-  if (/\b(assets\s+under\s+management|AUM|managed.*portfolio)/i.test(text)) { score += 3; reasons.push('+3 AUM'); }
-  if (/\b(multiple\s+(ventures|businesses|companies)|portfolio\s+of\s+companies|investment\s+holding)/i.test(text)) { score += 4; reasons.push('+4 multi-venture'); }
-  if (/\b(physical\s+commod|commodity\s+trad|grain|fertili[sz]er|freight|metals\s+trad|energy\s+trad)/i.test(text)) { score += 4; reasons.push('+4 commodity'); }
-  if (/\b(d2c|direct[- ]to[- ]consumer|e-?commerce|amazon\s+seller|shopify)/i.test(text)) { score -= 8; reasons.push('-8 D2C/e-commerce'); }
-  if (/\b(retail|hospitality|restaurant|cafe|f&b)\b/i.test(text) && !/\b(wealth|investment|finance|capital|fund)\b/i.test(text)) { score -= 6; reasons.push('-6 retail w/o finance'); }
-  // Penalize obvious non-finance industries that the keyword search may surface
-  if (/\b(tile|ceramic|construction\s+(materials|company)|garment|textile\s+(export|trader)|home\s+goods)\b/i.test(text) && !/\b(wealth|investment|finance|capital|fund|family\s+office)\b/i.test(text)) { score -= 8; reasons.push('-8 unrelated industry'); }
-  if (/\b(real\s+estate\s+agent|broker|property\s+consultant)\b/i.test(text) && !/\b(wealth|investment|finance|capital|fund|family\s+office)\b/i.test(text)) { score -= 6; reasons.push('-6 real estate sales'); }
-  if (/\b(software\s+(engineer|developer)|IT\s+manager|IT\s+director|backend\s+engineer|frontend\s+developer|DevOps|programmer|cloud\s+engineer|systems\s+engineer|full[- ]stack)\b/i.test(text) && !/\b(wealth|investment|finance|capital|fund|family\s+office|fintech|asset\s+management)\b/i.test(text)) { score -= 6; reasons.push('-6 IT/dev role'); }
-  if (/\b(student|intern|junior)\b/i.test(text)) { score -= 5; reasons.push('-5 junior'); }
-  if (/\b(marketing|growth|content|social\s+media|HR|recruit)\b/i.test(text) && !/\b(wealth|investment|finance|capital|fund|family\s+office)\b/i.test(text)) { score -= 4; reasons.push('-4 non-finance function'); }
-  if (/\bfounder\b/i.test(text) && !/(family\s+office|investment|fund|capital|wealth|holding)/i.test(text)) { score -= 3; reasons.push('-3 generic founder'); }
-  // v9: trusted-firm boost. We only scrape from FCIM-target firms in the first place,
-  // so being employed at one of these firms is itself qualification.
-  const targetFirms = /\b(julius\s+baer|lombard\s+odier|pictet|EFG|UBS|mirabaud|HSBC|BNP\s+paribas|standard\s+chartered|deutsche\s+bank|citi\s+private|barclays|stonehage|maitland|apex|IQ-?EQ|rothschild|lazard|houlihan|moelis|evercore|perella|investcorp|gulf\s+capital|abraaj|NBK|waha|mubadala|trafigura|vitol|glencore|mercuria|gunvor|cargill|al-?futtaim|al\s+habtoor|majid\s+al\s+futtaim|galadari|al\s+majid|al\s+naboodah|SHUAA|daman|al\s+mal)\b/i;
-  if (targetFirms.test(text)) { score += 5; reasons.push('+5 target firm'); }
-  // FCIM-specific positive signals (added v8)
-  if (/\b(group\s+chairman|chairman\s+of\s+the\s+board|family\s+business\s+chairman)\b/i.test(text)) { score += 5; reasons.push('+5 chairman'); }
-  if (/\b(holding\s+company|investment\s+holding|family\s+holding|group\s+holdings?)\b/i.test(text)) { score += 4; reasons.push('+4 holding co'); }
-  if (/\b(serial\s+entrepreneur|multiple\s+ventures|portfolio\s+of\s+companies)\b/i.test(text)) { score += 4; reasons.push('+4 multi-venture'); }
-  if (/\b(next\s+generation|second\s+generation|third\s+generation|2G|3G|family\s+council|family\s+enterprise)\b/i.test(text)) { score += 5; reasons.push('+5 succession'); }
-  if (/\b(succession|estate\s+planning|generational\s+(transition|wealth))\b/i.test(text)) { score += 4; reasons.push('+4 estate planning'); }
-  if (/\b(CFO|chief\s+financial\s+officer|finance\s+director)\b/i.test(text) && /\b(corporate|industries|holdings|group|enterprise|company|midcap|mid-cap)\b/i.test(text)) { score += 4; reasons.push('+4 corporate CFO'); }
-  if (/\b(pre-?IPO|going\s+public|capital\s+raise|growth\s+equity|series\s+[CDE]|M&A\s+advisory|mergers\s+and\s+acquisitions)\b/i.test(text)) { score += 5; reasons.push('+5 capital markets activity'); }
-  if (/\b(distressed|special\s+situations|turnaround|workout|restructuring|debt-?for-?equity|recapitalization)\b/i.test(text)) { score += 5; reasons.push('+5 distressed/special sits'); }
-  if (/\b(general\s+partner|GP\s+at|fund\s+sponsor|launching\s+(a\s+)?(private\s+)?fund)\b/i.test(text)) { score += 5; reasons.push('+5 fund sponsor'); }
-  if (/\b(physical\s+commodity|commodity\s+(trader|trading)|energy\s+trading|metals\s+trading|grain\s+trader|fertili[sz]er\s+trader)\b/i.test(text)) { score += 5; reasons.push('+5 commodity trader'); }
-  if (/\b(hedging|hedge\s+fund|risk\s+management).*\b(commodity|commodities|energy|metals|agri)/i.test(text)) { score += 4; reasons.push('+4 hedging context'); }
+
+  // Junior / intern / student — never a prospect
+  if (/\b(student|intern|junior\s+(analyst|associate)|graduate\s+(trainee|programme))\b/i.test(text)) {
+    score -= 6; reasons.push('-6 junior/intern');
+  }
+
+  // Tech / IT roles — not prospects
+  if (/\b(software\s+(engineer|developer)|IT\s+manager|IT\s+director|head\s+of\s+IT|backend\s+engineer|frontend\s+developer|DevOps|programmer|cloud\s+engineer|systems\s+engineer|full[- ]stack|SAP\s+(consultant|architect|analyst))\b/i.test(text) && !/\b(wealth|investment|finance|capital|fund|family\s+office|fintech|asset\s+management)\b/i.test(text)) {
+    score -= 6; reasons.push('-6 IT/dev role');
+  }
+
+  // HR / marketing / comms / talent acquisition — not prospects
+  if (/\b(human\s+resources|HR\s+(manager|director|business\s+partner|leader)|talent\s+acquisition|head\s+of\s+HR|head\s+of\s+(marketing|communications)|chief\s+marketing|marketing\s+manager|communications\s+lead|crisis\s+management)\b/i.test(text)) {
+    score -= 5; reasons.push('-5 HR/marketing/comms');
+  }
+
+  // Compliance / risk / operations — not commercial prospects
+  if (/\b(compliance\s+officer|head\s+of\s+compliance|chief\s+risk\s+officer|head\s+of\s+risk|operations\s+(manager|director|analyst)|audit\s+(manager|director))\b/i.test(text) && !/\b(restructuring|distressed|special\s+situations|commodity)/i.test(text)) {
+    score -= 4; reasons.push('-4 ops/compliance/risk');
+  }
+
+  // Unrelated industries (tile, ceramic, garment etc)
+  if (/\b(tile|ceramic|construction\s+(materials|company)|garment|textile\s+(export|trader)|home\s+goods)\b/i.test(text) && !/\b(wealth|investment|finance|capital|fund|family\s+office)\b/i.test(text)) {
+    score -= 8; reasons.push('-8 unrelated industry');
+  }
+  if (/\b(real\s+estate\s+agent|broker|property\s+consultant)\b/i.test(text) && !/\b(wealth|investment|finance|capital|fund|family\s+office)\b/i.test(text)) {
+    score -= 6; reasons.push('-6 real estate sales');
+  }
+
   return { score, reasons };
 }
 
@@ -510,8 +591,13 @@ function prospectCardHtml(p, isFeatured) {
 }
 
 function renderServiceSection(svc, items) {
+  // v10: add ID anchor + 'core' class for core specialties
+  const sectionId = svc.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+  const coreServices = ['Distressed & Special Situations', 'Commodities & Natural Resources', 'Structuring (Private Funds)'];
+  const isCore = coreServices.includes(svc.name);
+  const h2Class = isCore ? ' class="core"' : '';
   if (items.length === 0) {
-    return `<section class="service-section empty"><div class="service-header"><div class="left"><h2>${escapeHtml(svc.name)}</h2><p>${escapeHtml(svc.desc)}</p></div><div class="right-meta">No prospects today</div></div></section>`;
+    return `<section id="${sectionId}" class="service-section empty"><div class="service-header"><div class="left"><h2${h2Class}>${escapeHtml(svc.name)}</h2><p>${escapeHtml(svc.desc)}</p></div><div class="right-meta">No prospects today</div></div></section>`;
   }
   const byRegion = {};
   for (const p of items) {
@@ -532,7 +618,7 @@ function renderServiceSection(svc, items) {
     const lead = (rname === '__unrouted') ? 'Route by context' : (r && r.lead ? r.lead : 'Lead');
     return `<div class="region-block" style="${REGION_BLOCK}"><div style="${REGION_ROW}"><h3 style="${REGION_NAME}">${escapeHtml(name)}</h3><div style="${REGION_META}">${escapeHtml(lead)} \u00b7 ${ps.length} prospect${ps.length === 1 ? '' : 's'}</div></div></div><div class="items">${ps.map(p => prospectCardHtml(p, false)).join('')}</div>`;
   }).join('');
-  return `<section class="service-section"><div class="service-header"><div class="left"><h2>${escapeHtml(svc.name)}</h2><p>${escapeHtml(svc.desc)}</p></div><div class="right-meta">${items.length} prospect${items.length === 1 ? '' : 's'} \u00b7 today</div></div>${blocks}</section>`;
+  return `<section id="${sectionId}" class="service-section"><div class="service-header"><div class="left"><h2${h2Class}>${escapeHtml(svc.name)}</h2><p>${escapeHtml(svc.desc)}</p></div><div class="right-meta">${items.length} prospect${items.length === 1 ? '' : 's'} \u00b7 today</div></div>${blocks}</section>`;
 }
 
 function renderRegionChips(regionCounts) {
@@ -544,8 +630,166 @@ function renderRegionChips(regionCounts) {
   }).join('');
 }
 
+const INLINE_TEMPLATE = `<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FCIM Daily Intelligence \u2014 {{DATE}}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#1a1815;--cream:#FAF7EE;--cream-yellow:#F6EFD8;--gold:#C9B458;--gold-deep:#A88F35;--rule:#2a2722;--muted:#5a503e;--core:#7B2D26}
+*{box-sizing:border-box}
+body{margin:0;background:var(--cream);color:var(--ink);font-family:'Inter',ui-sans-serif,system-ui,sans-serif;font-size:15px;line-height:1.55}
+a{color:inherit}
+.wrap{max-width:1180px;margin:0 auto;padding:32px 24px 80px}
+header{border-bottom:1px solid var(--rule);padding-bottom:18px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:16px}
+.brand{font-family:'Fraunces',ui-serif,Georgia,serif;font-size:28px;line-height:1;letter-spacing:0.02em}
+.brand .sub{display:block;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);margin-top:6px;font-family:'Inter',sans-serif}
+.meta{font-size:12px;color:var(--muted);text-align:right;letter-spacing:0.04em}
+.meta .date{font-family:'Fraunces',ui-serif,serif;font-style:italic;font-size:18px;color:var(--ink);display:block;margin-bottom:4px}
+.council{margin:24px 0;font-family:'Fraunces',ui-serif,serif;font-style:italic;font-size:24px;line-height:1.3;letter-spacing:0.005em}
+
+/* Service-sector navigation chips (replaces the old workflow tabs) */
+.service-nav{margin:24px 0;padding:18px 0 14px;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+.service-nav-label{font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;font-weight:500}
+.service-chips{display:flex;flex-wrap:wrap;gap:8px}
+.service-chip{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:var(--cream);border:1px solid var(--rule);border-radius:18px;font-size:13px;text-decoration:none;color:var(--ink);transition:background .15s,border-color .15s}
+.service-chip:hover{background:var(--cream-yellow);border-color:var(--gold-deep)}
+.service-chip.core{background:var(--cream-yellow);border-color:var(--gold);font-weight:600}
+.service-chip.core:hover{background:#EFE3B8}
+.service-chip .chip-count{font-size:11px;color:var(--muted);background:rgba(0,0,0,0.04);padding:2px 6px;border-radius:10px}
+.service-chip.core .chip-count{background:rgba(169,143,53,0.18);color:var(--gold-deep)}
+
+.regions{margin:24px 0}
+.regions-label{font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.region-chips{display:flex;flex-wrap:wrap;gap:8px}
+.region-chip{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;background:var(--cream);border:1px solid var(--rule);border-radius:14px;font-size:12px;cursor:pointer}
+.region-chip.zero{opacity:.4}
+.region-chip .name{font-weight:500}
+.region-chip .count{color:var(--muted)}
+.region-chip .lead{color:var(--muted);font-style:italic}
+.clear-region{display:inline-block;margin-top:10px;font-size:12px;color:var(--muted);text-decoration:underline;cursor:pointer}
+
+.featured-wrapper{margin:32px 0}
+.featured-label{font-family:'Fraunces',ui-serif,serif;font-style:italic;font-size:22px;margin-bottom:12px}
+.prospect.featured{border:2px solid var(--gold);background:#fffef5}
+
+.service-section{margin:48px 0}
+.service-header{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;padding-bottom:14px;border-bottom:2px solid var(--rule);margin-bottom:24px;flex-wrap:wrap}
+.service-header .left{flex:1;min-width:280px}
+.service-header h2{font-family:'Fraunces',ui-serif,serif;font-size:30px;font-weight:500;margin:0 0 6px}
+.service-header h2.core::before{content:'CORE \u00b7 ';color:var(--core);font-size:12px;letter-spacing:0.18em;font-family:'Inter',sans-serif;font-weight:600;vertical-align:middle;margin-right:4px}
+.service-header p{margin:0;color:var(--muted);font-size:14px;line-height:1.5}
+.service-header .right-meta{font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+.service-section.empty .service-header{border-bottom-color:#d8d2c0;opacity:0.5}
+
+.prospect{background:#fffef9;border:1px solid var(--rule);padding:22px 24px;margin-bottom:18px}
+.service-tag{font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--gold-deep);font-weight:600;margin-bottom:12px}
+.head-row{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap}
+.head-main{flex:1;min-width:240px}
+.head-main h3{font-family:'Fraunces',ui-serif,serif;font-size:22px;line-height:1.2;margin:0 0 4px;font-weight:500}
+.head-main .sub{color:var(--muted);font-size:13px}
+.head-main .sub .dot{margin:0 6px;color:#bcb29a}
+.lead-block{background:var(--cream-yellow);padding:6px 12px;font-size:12px;border-left:2px solid var(--gold)}
+.lead-block .lead-label{display:block;font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--gold-deep);margin-bottom:2px}
+
+.section{margin:14px 0}
+.section .label{font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;font-weight:600}
+.section p{margin:4px 0;font-size:13.5px;line-height:1.55}
+
+.compliance{padding:10px 14px;margin:14px 0;border-left:3px solid #c14;font-size:12px;background:#fdf3f3}
+.compliance .label{display:inline-block;font-size:9px;letter-spacing:0.18em;color:#c14;font-weight:700;margin-right:6px}
+
+.first-step{background:var(--cream-yellow);padding:14px 16px;margin-top:18px;border-left:3px solid var(--gold)}
+.first-step .label{font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--gold-deep);font-weight:600;margin-bottom:6px}
+.first-step p{margin:6px 0 12px;font-size:13.5px}
+.draft-btn{padding:8px 14px;background:var(--ink);color:var(--cream);border:none;font-size:12px;letter-spacing:0.04em;cursor:pointer;font-family:inherit}
+.draft-btn:hover{background:#000}
+.draft-btn:active{transform:translateY(1px)}
+
+footer{margin-top:64px;padding-top:24px;border-top:1px solid var(--rule);font-size:11px;color:var(--muted);letter-spacing:0.04em;text-align:center}
+
+@media (max-width:680px){
+  .wrap{padding:20px 16px 60px}
+  header{flex-direction:column;align-items:flex-start}
+  .meta{text-align:left}
+  .service-header h2{font-size:24px}
+  .head-main h3{font-size:18px}
+  .lead-block{align-self:stretch}
+  .head-row{flex-direction:column}
+}
+</style>
+</head><body>
+<div class="wrap">
+<header>
+  <div class="brand">FCIM Daily Intelligence<span class="sub">Fundament Capital \u00b7 Business Bay</span></div>
+  <div class="meta"><span class="date">{{DATE}}</span><span>GitHub \u00b7 Daily build \u00b7 {{BUILT_AT}}</span></div>
+</header>
+
+<div class="council">{{COUNCIL_LINE}}</div>
+
+<nav class="service-nav" aria-label="Service sectors">
+  <div class="service-nav-label">FCIM service sectors \u2014 tap to jump</div>
+  {{SERVICE_NAV}}
+</nav>
+
+<div class="regions">
+  <div class="regions-label">Regions reporting today</div>
+  {{REGION_CHIPS}}
+  <span class="clear-region" id="clearRegion">Clear region filter</span>
+</div>
+
+<div class="featured-wrapper" style="{{FEATURED_WRAPPER_STYLE}}">
+  <div class="featured-label">Today\u2019s strongest signal</div>
+  {{FEATURED}}
+</div>
+
+<main>
+{{CONTENT}}
+</main>
+
+<footer>FCIM Daily Intelligence \u00b7 internal tool for Yehya Abdelbaki \u00b7 generated {{BUILT_AT}}</footer>
+</div>
+<script>
+// Region filter
+document.querySelectorAll('.region-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    const r = chip.getAttribute('data-region');
+    document.querySelectorAll('.prospect').forEach(p => {
+      const pr = p.getAttribute('data-region') || '';
+      p.style.display = (pr === r) ? '' : 'none';
+    });
+    document.querySelectorAll('.region-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+  });
+});
+document.getElementById('clearRegion').addEventListener('click', () => {
+  document.querySelectorAll('.prospect').forEach(p => p.style.display = '');
+  document.querySelectorAll('.region-chip').forEach(c => c.classList.remove('active'));
+});
+// Copy draft prompt
+document.querySelectorAll('.draft-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const t = btn.getAttribute('data-prompt');
+    try { await navigator.clipboard.writeText(t); btn.textContent = 'Copied'; setTimeout(()=>btn.textContent='Copy draft prompt', 1500); }
+    catch(e) { btn.textContent='Copy failed'; setTimeout(()=>btn.textContent='Copy draft prompt', 1500); }
+  });
+});
+// Smooth-scroll service chips
+document.querySelectorAll('.service-chip').forEach(c => {
+  c.addEventListener('click', e => {
+    const href = c.getAttribute('href');
+    if (href && href.startsWith('#')) {
+      const t = document.getElementById(href.slice(1));
+      if (t) { e.preventDefault(); t.scrollIntoView({behavior:'smooth', block:'start'}); }
+    }
+  });
+});
+</script>
+</body></html>`;
+
 async function main() {
-  console.log('FCIM Daily Build v9.2 - dedupe fix - starting');
+  console.log('FCIM Daily Build v10 - FCIM-aligned strategy + service nav - starting');
   await checkApifyAccount();
   const buckets = pickTodaysQueries();
   console.log(`Today's buckets: ${buckets.map(b => b.label).join(' | ')}`);
@@ -628,14 +872,8 @@ async function main() {
   const dateStamp = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Dubai', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date());
   const verifiedCount = profiles.filter(p => p.emailVerified).length;
   const councilLine = featured ? `Council convened - ${profiles.length} qualified prospects, ${verifiedCount} with verified emails.` : `Council couldn't qualify any prospects today. ${beforeGate} pulled, ${beforeGate - profiles.length} dropped at the quality gate.`;
-  let template;
-  try {
-    template = fs.readFileSync('index.template.html', 'utf-8');
-  } catch (e) {
-    console.error('FATAL: index.template.html not found in working directory.');
-    console.error('Listing files in cwd:', fs.readdirSync('.').join(', '));
-    process.exit(1);
-  }
+  // v10: template now inlined in build.js — no separate file needed
+  const template = INLINE_TEMPLATE;
   // Function-form replacements so $&, $1, etc. in values are not interpreted as backreferences.
   const dateStr = escapeHtml(dateStamp);
   const builtAtStr = escapeHtml(new Date().toISOString());
@@ -644,11 +882,25 @@ async function main() {
   const featuredStr = featured ? prospectCardHtml(featured, true) : '';
   const contentStr = servicesHtml + emptyServicesHtml;
   const wrapperStr = featured ? '' : 'display:none';
+  // v10: build service-sector navigation chips (replaces old workflow tabs)
+  const coreServices = ['Distressed & Special Situations', 'Commodities & Natural Resources', 'Structuring (Private Funds)'];
+  const serviceCounts = {};
+  for (const svc of SERVICES) {
+    serviceCounts[svc.name] = (featured && featured.diagnosis && featured.diagnosis.fcimService === svc.name ? 1 : 0)
+      + remaining.filter(p => p.diagnosis && p.diagnosis.fcimService === svc.name).length;
+  }
+  const slugify = s => s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+  const serviceNav = '<div class="service-chips">' + SERVICES.map(svc => {
+    const isCore = coreServices.includes(svc.name);
+    const count = serviceCounts[svc.name] || 0;
+    return `<a href="#${slugify(svc.name)}" class="service-chip ${isCore ? 'core' : ''}">${escapeHtml(svc.name)}<span class="chip-count">${count}</span></a>`;
+  }).join('') + '</div>';
   const html = template
     .replace(/\{\{DATE\}\}/g, () => dateStr)
     .replace(/\{\{BUILT_AT\}\}/g, () => builtAtStr)
     .replace(/\{\{COUNCIL_LINE\}\}/g, () => councilStr)
     .replace(/\{\{REGION_CHIPS\}\}/g, () => chipsStr)
+    .replace(/\{\{SERVICE_NAV\}\}/g, () => serviceNav)
     .replace(/\{\{FEATURED\}\}/g, () => featuredStr)
     .replace(/\{\{CONTENT\}\}/g, () => contentStr)
     .replace(/\{\{FEATURED_WRAPPER_STYLE\}\}/g, () => wrapperStr);
