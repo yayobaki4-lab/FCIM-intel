@@ -1,4 +1,4 @@
-/* FCIM Daily Intelligence - daily builder v3 */
+/* FCIM Daily Intelligence - daily builder v11 */
 const fs = require('node:fs');
 
 const APIFY_TOKEN = process.env.APIFY_TOKEN;
@@ -13,61 +13,94 @@ if (!HUNTER_API_KEY) {
 const APIFY_ACTOR_PRIMARY = 'harvestapi~linkedin-profile-search';
 const APIFY_ACTOR_FALLBACK = 'harvestapi~linkedin-profile-search-by-services';
 const QUALITY_THRESHOLD = 1;
-const MAX_HUNTER_CALLS_PER_RUN = 25;
+const MAX_HUNTER_CALLS_PER_RUN = 100;
 
 const QUERY_BUCKETS = [
-  // v10: aligned to FCIM's Corporate Profile 2026.
-  // FCIM is "built for complexity" — three core specialties: Distressed & Special
-  // Situations, Commodities & Natural Resources, Structuring (Funds & Transactions).
-  // Wealth Management and IB&Advisory are ADDITIONAL capabilities, not core.
-  // Therefore prospects are: people who BRING complex situations FCIM solves.
-  // We DROP the major private banks (competitors, not clients) and instead target:
-  //  - Restructuring/special-sit advisors at IBs (referral partners for distressed deals)
-  //  - Physical commodity traders (direct clients for derivatives platform)
-  //  - Fund admin & MFO operators (referral partners for structuring)
-  //  - PE/VC sponsors (direct clients for fund formation)
-  //  - Indian/Lebanese/Egyptian-origin family conglomerates (direct clients)
-  //  - Boutique EAM/independent wealth shops (FI Platform clients)
-  //  - Distressed/special-situations capital funds (direct clients)
-  //  - Mid-market corporate development (IB & Advisory clients)
+  // v11: SIZE-MATCHED to FCIM ($5.5B AUM) and a first-year RM's reachability.
+  //
+  // v10 targeted Houlihan, Rothschild, Trafigura, Vitol, Apex, Investcorp, Mubadala,
+  // TPG, Carlyle, Ares, Oaktree — all 10-80x larger than FCIM. Counterpart altitude
+  // is wrong, FCIM is a vendor not a peer, and a first-year RM cold-emailing a
+  // Partner at Ares does not get a meeting. v11 corrects this.
+  //
+  // FCIM's three CORE specialties remain: Distressed & Special Situations,
+  // Commodities & Natural Resources, Structuring (Funds & Transactions). But the
+  // FIRMS we hunt at are mid-market regional ones where FCIM is a peer or upmarket
+  // partner, not a downmarket vendor.
+  //
+  // Sweet-spot prospect firm = $50m-$2bn revenue / $200m-$5bn AUM, Dubai-resident
+  // decision-maker, Director-VP-MD altitude (not Partner / Group CEO / Board SEO).
+  //
+  // Direct client targets (FCIM service buyers):
+  //  - Mid-market regional PE/AltInv shops ($200m-$3bn AUM)
+  //  - Mid-cap UAE / GCC family conglomerates ($100m-$1bn revenue, family-owned)
+  //  - DMCC mid-tier physical commodity traders (regional, not Trafigura-scale)
+  //  - Boutique SCA-licensed brokerages, EAMs, and wealth shops
+  //  - Owner-operated single family offices in Dubai
+  //  - Mid-cap MENA listed corporates (treasury / M&A / refinancing pain)
+  //
+  // Referral / partner targets (deal-flow sources for FCIM CORE specialties):
+  //  - DIFC/ADGM mid-tier law firms (special-sits and fund formation desks)
+  //  - Regional restructuring boutiques (not Big-4 Restructuring or Houlihan)
+  //  - Insolvency practitioners and trustees in DIFC Courts
+  //
+  // Note: any firm in COMPLIANCE_BLOCK (which now includes mega-PE, global
+  // commodity majors, global fund admins, and global IB advisors) is filtered
+  // post-fetch. Search may surface them; scoring drops them.
+
   {
-    label: 'Restructuring & Special Situations Advisors',
-    body: { companies: ['Houlihan Lokey', 'Rothschild & Co', 'Lazard', 'AlixPartners', 'FTI Consulting', 'Alvarez & Marsal', 'PJT Partners', 'Kroll'] },
-    region: null, serviceHint: 'Distressed & Special Situations'
+    label: 'Mid-Market Regional PE & Alternative Investment',
+    // $200m-$3bn AUM regional shops. Direct fund-formation and structuring buyers.
+    body: { companies: ['Gulf Capital', 'Waha Capital', 'NBK Capital Partners', 'Shorooq Partners', 'BECO Capital', 'Wamda Capital', 'Mizuho Gulf Capital Partners', 'Riyad Capital', 'Saudi Fransi Capital', 'GFH Financial Group'] },
+    region: null, serviceHint: 'Structuring (Private Funds)'
   },
   {
-    label: 'Physical Commodity Traders',
-    body: { companies: ['Trafigura', 'Vitol', 'Glencore', 'Mercuria', 'Gunvor', 'Cargill', 'Bunge', 'Olam International'] },
+    label: 'Mid-Cap UAE/GCC Family Conglomerates',
+    // Family-owned, $100m-$1bn revenue, active principals or 2G management.
+    // These are foundation/structuring/family-office buyers — not Majid Al Futtaim scale.
+    body: { companies: ['Thumbay Group', 'Choithrams', 'BinHendi Enterprises', 'Al Hokair Group', 'Al Naboodah Group', 'Belhasa Group', 'Rostamani Group', 'Al Habtoor Group', 'Saif Belhasa Holding', 'Galadari Brothers'] },
+    region: null, serviceHint: 'Foundation + Private Fund'
+  },
+  {
+    label: 'Egyptian / Levantine Mid-Cap Family Business',
+    // Egyptian + Levantine family conglomerates with Dubai presence. Ibrahim/Amr networks.
+    body: { companies: ['Hassan Allam Holding', 'Mansour Group', 'Mohamed Mansour', 'Sabbagh Holding', 'Joseph Group', 'BTI International', 'Saudi Bin Laden Group', 'Khalifa Algosaibi', 'Olayan Group', 'Bahwan Group'] },
+    region: null, serviceHint: 'Foundation + Private Fund'
+  },
+  {
+    label: 'DMCC Mid-Tier Physical Commodity Traders',
+    // Regional commodity traders with $50m-$1bn turnover. Real hedging buyers
+    // — not Trafigura/Vitol who use tier-1 banks. Targets: agri, metals, energy
+    // mid-tier shops with DMCC or DIFC presence.
+    body: { companies: ['Phoenix Commodities', 'Aston Agro', 'Agrocorp International', 'ETG Commodities', 'Hakan Agro', 'Mahsul Trading', 'Maviga Middle East', 'Alvean Sugar', 'Sucden Middle East', 'ED&F Man'] },
     region: null, serviceHint: 'Commodities & Natural Resources'
   },
   {
-    label: 'Fund Admin & MFO Operators',
-    body: { companies: ['Stonehage Fleming', 'Apex Group', 'IQ-EQ', 'Maitland Group', 'Hawksford', 'Vistra', 'TMF Group', 'Trident Trust'] },
-    region: null, serviceHint: 'Structuring (Private Funds)'
-  },
-  {
-    label: 'PE / VC Sponsors',
-    body: { companies: ['Investcorp', 'Gulf Capital', 'NBK Capital Partners', 'Waha Capital', 'Mubadala Capital', 'Ardian', 'The Carlyle Group', 'TPG'] },
-    region: null, serviceHint: 'Structuring (Private Funds)'
-  },
-  {
-    label: 'Indian-Origin Family Conglomerates',
-    body: { companies: ['Lulu Group International', 'Landmark Group', 'Apparel Group', 'Sharaf Group', 'Choithrams', 'GEMS Education', 'Aster DM Healthcare', 'Thumbay Group'] },
-    region: null, serviceHint: 'Foundation + Private Fund'
-  },
-  {
-    label: 'Lebanese / Egyptian / Levantine Business',
-    body: { companies: ['Sabbagh Holding', 'Joseph Group', 'Ezz Steel', 'Orascom Construction', 'Mansour Group', 'Hassan Allam Holding', 'BTI International', 'CCC Consolidated Contractors'] },
-    region: null, serviceHint: 'Foundation + Private Fund'
-  },
-  {
-    label: 'Boutique EAM & Independent Wealth',
-    body: { companies: ['Holborn Assets', 'Lighthouse Capital', 'Ocean Wall', 'Globaleye Wealth Management', 'Killik & Co', 'Quintet Private Bank', 'Stanhope Capital', 'LGT Vestra'] },
+    label: 'Boutique EAM, SCA Brokers & Independent Wealth',
+    // Regulated UAE EAMs and SCA brokerages — direct EAM/FI Platform buyers.
+    // NOT competitor private banks. Smaller shops looking for backbone infra.
+    body: { companies: ['Holborn Assets', 'Globaleye Wealth Management', 'Mondial Dubai', 'AES International', 'Nexus Insurance Brokers', 'Continental Insurance Brokers', 'Acuma Wealth Management', 'Hoxton Capital', 'Lighthouse Capital', 'Killik & Co Dubai'] },
     region: null, serviceHint: 'EAM / FI Platform'
   },
   {
-    label: 'Distressed Capital & Special Situations Funds',
-    body: { companies: ['Davidson Kempner Capital Management', 'Värde Partners', 'Ares Management', 'Brevet Capital', 'Cerberus Capital Management', 'Sculptor Capital', 'Centerbridge Partners', 'Oaktree Capital Management'] },
+    label: 'Single Family Offices & Owner-Operated Holding Cos',
+    // Directly operated SFOs and family holding companies. Family Office Advisory
+    // and Foundation + Private Fund buyers.
+    body: { companies: ['Al Hamra Holding', 'Lunate', 'Royal Group', 'Al Futtaim Private Office', 'Al Sayegh Group', 'Al Bahar Family Office', 'Sharaf Group', 'Easa Saleh Al Gurg Group', 'Bukhatir Group', 'Juma Al Majid Group'] },
+    region: null, serviceHint: 'Family Office Advisory'
+  },
+  {
+    label: 'Mid-Cap MENA Listed Corporate Treasury & CFO',
+    // CFOs and group treasury heads at mid-cap listed MENA corporates ($200m-$2bn cap).
+    // Treasury hedging + structuring buyers.
+    body: { companies: ['Agility Public Warehousing', 'Aramex', 'GFH Financial Group', 'Gulf Navigation', 'Drake & Scull', 'Damac Properties', 'Deyaar Development', 'Aldar Properties', 'Union Properties', 'Eshraq Investments'] },
+    region: null, serviceHint: 'IB & Advisory'
+  },
+  {
+    label: 'DIFC/ADGM Mid-Tier Law & Insolvency Practitioners',
+    // Mid-tier law firms (not Magic Circle) with structured-finance, fund-formation,
+    // and insolvency practices. Referral partners for FCIM CORE specialties.
+    body: { companies: ['BSA Ahmad Bin Hezeem', 'Galadari Advocates', 'Hadef & Partners', 'Al Tamimi & Company', 'Afridi & Angell', 'Bin Shabib & Associates', 'Charles Russell Speechlys', 'Bracewell', 'Stephenson Harwood DIFC', 'Hourani & Partners'] },
     region: null, serviceHint: 'Distressed & Special Situations'
   }
 ];
@@ -115,7 +148,7 @@ const PROBLEMS = [
     fcimService: 'Structuring (Private Funds)', angle: 'Fund launch or admin pain - FCIM is one of only five UAE-authorised fund administrators.' },
   { id: 'pre-ipo-or-ma', label: 'Pre-IPO or M&A advisory candidate',
     signals: [/\b(pre-?IPO|going\s+public|listing\s+plans)\b/i, /\b(M&A|mergers|acquisitions)\s+(advisor|target|strategy)/i, /\b(capital\s+raise|growth\s+equity|series\s+[CDE])\b/i, /\b(corporate\s+finance|capital\s+markets)\s+(director|head|managing)/i],
-    fcimService: 'IB & Advisory', angle: 'Capital-markets activity ahead - FCIM IB desk (Dmitri Tchekalkine, 30+ years EM banking) covers ECM, DCM, M&A, UAE listings.' },
+    fcimService: 'IB & Advisory', angle: 'Capital-markets activity ahead - FCIM IB desk (Tim Almashat, MD Head of IB) covers ECM, DCM, M&A, UAE listings.' },
   { id: 'discretionary-mandate', label: 'HNW with liquid capital seeking discretionary mandate',
     signals: [/\b(post-?exit|exited|sold\s+(my|the)\s+(company|business))\b/i, /\b(personal\s+investment\s+company|PIC)\b/i, /\b(family\s+wealth|personal\s+wealth|liquid\s+capital)\b/i, /\b(HNW|UHNW|high\s+net\s+worth)\b/i],
     fcimService: 'Discretionary Portfolio Management', angle: 'Liquid capital seeking managed mandate - five CMA-approved model portfolios, USD 1M minimum.' },
@@ -130,8 +163,8 @@ const PROBLEMS = [
 const REGIONS = [
   { name: 'MENA / Levant', lead: 'Amr Fergany', warmPath: 'Amr Fergany via Credit Suisse DIFC alumni and Levantine professional networks in Dubai.' },
   { name: 'Egypt', lead: 'Ibrahim Hemeida', warmPath: 'Ibrahim Hemeida via the Egyptian Business Council Dubai and his Egyptian banking and UBP relationships.' },
-  { name: 'Russia / CIS', lead: 'Dmitri Tchekalkine', warmPath: 'Dmitri Tchekalkine via 30+ years of EM banking relationships at Chemical Bank, Bear Stearns, and CIS-focused institutions.' },
-  { name: 'Caucasus / CIS', lead: 'Dmitri Tchekalkine', warmPath: 'Dmitri Tchekalkine via Caucasus and CIS banking relationships built across decades of EM coverage.' },
+  { name: 'Russia / CIS', lead: 'Dmitri Ganjour', warmPath: 'Dmitri Ganjour via ETH Zürich and EPFL networks; Russian/French/English-speaking, derivatives and quant background.' },
+  { name: 'Caucasus / CIS', lead: 'Dmitri Ganjour', warmPath: 'Dmitri Ganjour via Caucasus and CIS quant/derivatives professional networks.' },
   { name: 'India', lead: 'Saran Sankar', warmPath: 'Saran Sankar via UBS Investment Bank alumni and Indian Business & Professional Council Dubai.' },
   { name: 'Africa', lead: 'Ibrahim Hemeida', warmPath: 'Ibrahim Hemeida via Dubai-based African diaspora professional networks and pan-African banking relationships.' },
   { name: 'UK / Western', lead: 'Steven Downey', warmPath: 'Steven Downey via London Business School alumni and CFA Society UAE.' }
@@ -148,7 +181,27 @@ const COMPLIANCE_BLOCK = [
   /\bskybound\s+wealth\b/i,
   // v10: existing FCIM relationships / direct competitors — exclude from prospect list
   /\bjulius\s+baer\b/i,
-  /\bEFG\s+(international|bank|hermes)\b/i
+  /\bEFG\s+(international|bank|hermes)\b/i,
+
+  // v11 ADDITIONS: firms structurally wrong for FCIM at first-year-RM altitude.
+
+  // FIRM-TOO-BIG block: $50bn+ AUM funds. FCIM is a vendor not a peer. RM altitude wrong.
+  /\b(blackstone|kkr|carlyle\s+group|the\s+carlyle\s+group|TPG\s+capital|TPG\s+inc|warburg\s+pincus|bain\s+capital|advent\s+international|cvc\s+capital|EQT\s+partners|apollo\s+global|brookfield\s+asset|ardian|permira|silver\s+lake|vista\s+equity|thoma\s+bravo|general\s+atlantic|hellman\s+&\s+friedman|leonard\s+green|providence\s+equity|partners\s+group|mubadala\s+capital|adq|adia|GIC|temasek|PIF|public\s+investment\s+fund|saudi\s+arabia\s+sovereign)\b/i,
+
+  // GLOBAL DISTRESSED FUNDS: $30bn+ credit shops. Same wrong-altitude problem.
+  /\b(oaktree\s+capital|ares\s+management|cerberus\s+capital|davidson\s+kempner|v\u00e4rde\s+partners|varde\s+partners|sculptor\s+capital|centerbridge\s+partners|brevet\s+capital|fortress\s+investment|elliott\s+management|baupost\s+group|king\s+street\s+capital)\b/i,
+
+  // GLOBAL IB & RESTRUCTURING ADVISORS: tier-1 advisor MDs are not first-year-RM cold targets.
+  /\b(houlihan\s+lokey|rothschild\s+&\s+co|rothschildandco|lazard\s+(ltd|freres|group)|moelis\s+&\s+company|evercore|perella\s+weinberg|PJT\s+partners|guggenheim\s+partners|alixpartners|alvarez\s+&\s+marsal|FTI\s+consulting|kroll\s+(LLC|inc|advisory))\b/i,
+
+  // GLOBAL COMMODITY MAJORS: $50bn+ revenue traders use tier-1 banks for derivatives.
+  /\b(trafigura|vitol|glencore|mercuria|gunvor|cargill\s+(inc|incorporated)|bunge\s+(limited|global)|olam\s+international|wilmar\s+international|louis\s+dreyfus|ADM\s+(archer|company)|cofco\s+international)\b/i,
+
+  // GLOBAL FUND ADMINS — direct competitors on FCIM's service line.
+  /\b(apex\s+group|apex\s+fund\s+services|TMF\s+group|hawksford|trident\s+trust|VISTRA\s+(group|ltd|services)|IQ-?EQ|maitland\s+group|stonehage\s+fleming|citco\s+fund\s+services|northern\s+trust|state\s+street\s+(corporation|fund))\b/i,
+
+  // GLOBAL PRIVATE BANKS at competitor altitude — not first-year-RM targets.
+  /\b(UBS\s+(group|wealth|global|AG)|credit\s+suisse|deutsche\s+bank\s+wealth|citi\s+private\s+bank|JP\s*morgan\s+private|goldman\s+sachs\s+(private|wealth)|morgan\s+stanley\s+(wealth|private)|HSBC\s+private\s+bank|standard\s+chartered\s+private|BNP\s+paribas\s+wealth|lombard\s+odier|pictet\s+&\s+cie|mirabaud|edmond\s+de\s+rothschild|safra\s+sarasin)\b/i
 ];
 const COMPLIANCE_WARN = /\b(PEP|politically\s+exposed|state[- ]owned|sovereign\s+wealth|minister|ambassador)\b/i;
 
@@ -357,9 +410,35 @@ function scoreProfile(p) {
     score += 3; reasons.push('+3 AUM');
   }
 
-  // v10 trusted-firm boost — only for FCIM-target firms (NOT private banks)
-  const targetFirms = /\b(houlihan\s+lokey|rothschild|lazard|alixpartners|FTI\s+consulting|alvarez|moelis|evercore|perella|PJT\s+partners|kroll|trafigura|vitol|glencore|mercuria|gunvor|cargill|bunge|olam|stonehage|maitland|apex\s+group|IQ-?EQ|hawksford|vistra|TMF|trident\s+trust|investcorp|gulf\s+capital|NBK\s+capital|waha|mubadala\s+capital|ardian|carlyle|TPG|davidson\s+kempner|v\u00e4rde|varde|ares\s+management|brevet|cerberus|sculptor|centerbridge|oaktree|lulu\s+group|landmark\s+group|apparel\s+group|sharaf|choithram|GEMS\s+education|aster|thumbay|sabbagh|joseph\s+group|ezz\s+steel|orascom|mansour\s+group|hassan\s+allam|BTI|CCC|holborn|lighthouse\s+capital|ocean\s+wall|globaleye|killik|quintet|stanhope|LGT\s+vestra)\b/i;
-  if (targetFirms.test(text)) { score += 5; reasons.push('+5 target firm'); }
+  // v11 size-matched boosts — only firms where FCIM is a peer or upmarket partner
+  // (NOT a downmarket vendor). These are the new mid-market regional targets.
+  const targetFirmsV11 = /\b(gulf\s+capital|waha\s+capital|NBK\s+capital|shorooq\s+partners|BECO\s+capital|wamda\s+capital|mizuho\s+gulf\s+capital|riyad\s+capital|saudi\s+fransi\s+capital|GFH\s+financial|thumbay\s+group|choithram|binhendi|al\s+hokair|al\s+naboodah|belhasa\s+group|rostamani|al\s+habtoor|saif\s+belhasa|galadari\s+brothers|hassan\s+allam|mansour\s+group|sabbagh\s+holding|joseph\s+group|BTI\s+international|olayan\s+group|bahwan\s+group|phoenix\s+commodities|aston\s+agro|agrocorp|ETG\s+commodities|hakan\s+agro|maviga|alvean\s+sugar|sucden\s+middle\s+east|ED&F\s+man|holborn\s+assets|globaleye|mondial\s+dubai|AES\s+international|nexus\s+insurance|continental\s+insurance|acuma\s+wealth|hoxton\s+capital|al\s+hamra\s+holding|lunate|royal\s+group|al\s+sayegh|al\s+bahar\s+family|sharaf\s+group|easa\s+saleh\s+al\s+gurg|bukhatir\s+group|juma\s+al\s+majid|agility|aramex|gulf\s+navigation|drake\s+&\s+scull|damac|deyaar|aldar|union\s+properties|eshraq|BSA\s+ahmad|galadari\s+advocates|hadef\s+&\s+partners|al\s+tamimi|afridi\s+&\s+angell|bin\s+shabib|charles\s+russell|bracewell|stephenson\s+harwood|hourani)\b/i;
+  if (targetFirmsV11.test(text)) { score += 5; reasons.push('+5 v11 mid-market target firm'); }
+
+  // v11 PROPORTIONALITY PENALTY — global mega-firms surfaced despite COMPLIANCE_BLOCK.
+  // Belt-and-suspenders: compliance kills these, but if anything slips through, score
+  // pushes them below the quality gate. Only triggers if firm-name keywords appear.
+  const megaFirmTextual = /\b(blackstone|KKR\b|carlyle|TPG\s+(capital|inc|holdings)|warburg\s+pincus|bain\s+capital|advent\s+international|CVC\s+capital|EQT\s+partners|apollo\s+global|brookfield|permira|silver\s+lake|vista\s+equity|thoma\s+bravo|general\s+atlantic|partners\s+group|mubadala\s+capital|ADIA|GIC\s+private|temasek|public\s+investment\s+fund|oaktree|ares\s+management|cerberus\s+capital|davidson\s+kempner|fortress\s+investment|elliott\s+management|houlihan\s+lokey|rothschild|lazard|moelis|evercore|perella|PJT\s+partners|guggenheim|alvarez\s+&\s+marsal|FTI\s+consulting|alixpartners|trafigura|vitol|glencore|mercuria|gunvor|cargill|bunge|olam|wilmar|louis\s+dreyfus|cofco|apex\s+group|TMF\s+group|hawksford|trident\s+trust|vistra|IQ-?EQ|maitland|stonehage\s+fleming|citco|UBS|credit\s+suisse|deutsche\s+bank|citi\s+private|JP\s*morgan\s+private|goldman\s+sachs|morgan\s+stanley|HSBC\s+private|BNP\s+paribas\s+wealth|lombard\s+odier|pictet|mirabaud|edmond\s+de\s+rothschild)\b/i;
+  if (megaFirmTextual.test(text)) {
+    score -= 10; reasons.push('-10 mega-firm wrong-altitude for FCIM');
+  }
+
+  // v11 SENIORITY MISMATCH PENALTY — Partner / SEO / Global Head / Board Member
+  // at large firms is wrong-altitude for first-year-RM cold outreach. These names
+  // require Amr/Ibrahim/Steven to send, not Yehya. Drop them from Yehya's list.
+  const tooSeniorTitle = /\b(senior\s+managing\s+director|global\s+(head|partner)|partner\s+&\s+(MD|managing\s+director|head)|managing\s+partner|senior\s+partner|founding\s+partner|chairman\s+&\s+CEO|group\s+CEO|group\s+chairman|board\s+member|board\s+director|SEO\s+of|chief\s+executive\s+officer)\b/i;
+  // ...but only penalize if NOT at a small/mid-market firm (small firms have small "MD" titles too)
+  const smallFirmExempt = /\b(boutique|family\s+office|advisory|consultancy|partners\s+(LLP|UAE)|associates|FZ-?LLC|SME)\b/i;
+  if (tooSeniorTitle.test(text) && !smallFirmExempt.test(text) && megaFirmTextual.test(text)) {
+    score -= 6; reasons.push('-6 seniority mismatch (Yehya altitude)');
+  }
+
+  // v11 SWEET-SPOT TITLE BOOST — Director / VP / MD-at-small-firm / Head of [Function]
+  // at mid-market firms is exactly Yehya's altitude.
+  const sweetSpotTitle = /\b(director|vice\s+president|VP\b|head\s+of\s+(finance|treasury|corporate\s+development|M&A|investments|portfolio|structured|risk)|principal|associate\s+director|senior\s+manager)\b/i;
+  if (sweetSpotTitle.test(text) && targetFirmsV11.test(text)) {
+    score += 4; reasons.push('+4 sweet-spot title at target firm');
+  }
 
   // ============ NEGATIVE SIGNALS ============
   // Wealth manager / private banker AT a competitor private bank — these are competition, not prospects
@@ -512,6 +591,14 @@ function routeRegion(p) {
 function buildDraftPrompt(p) {
   const dx = p.diagnosis || {};
   const emailLine = p.emailVerified ? `Verified email: ${p.email}` : (p.emailGuesses && p.emailGuesses.length ? `Email (best guess, unverified): ${p.emailGuesses[0]}. Other patterns: ${p.emailGuesses.slice(1).join(', ')}` : 'Email: not found - use LinkedIn InMail.');
+
+  // v11: surface the matched FCIM evidence to the email-drafting agent so the
+  // Credibility Agent has actual citable text to anchor "why us" claims.
+  const match = (typeof matchEvidence === 'function') ? matchEvidence(p) : null;
+  const evidenceLine = match
+    ? `\nFCIM EVIDENCE (from ${match.evidence.source_pdf}, p.${match.evidence.source_page})\n"${match.evidence.text}"\n`
+    : '\nFCIM EVIDENCE: no chunk auto-matched. Use the SERVICES.solution text as fallback and flag in council.\n';
+
   return `Draft Yehya Abdelbaki FCIM outreach. The diagnostic agent has matched a specific FCIM problem.
 
 PROSPECT
@@ -528,28 +615,159 @@ ${dx.problem || '(manual review)'}
 FCIM SOLUTION (anchor the email here)
 ${dx.angle || 'Tailor based on profile.'}
 Matched service: ${dx.fcimService || '(pick best fit)'}
-
+${evidenceLine}
 REGION & WARM PATH
 Region: ${p.region || '(not detected)'}
 Suggested lead: ${p.regionLead || '(route by context)'}
 Warm path: ${p.regionWarmPath || '(route by context)'}
 
-WRITING RULES
-- Under 200 words.
-- Open with a specific, non-glazing reference to their actual situation.
+============================================================
+COUNCIL OF AGENTS — RUN BEFORE DRAFTING (mandatory)
+============================================================
+Before writing the email, answer each agent honestly. If any agent
+fails decisively, RECOMMEND SKIPPING THE PROSPECT instead of forcing a
+draft. A "no draft" output is acceptable and preferred over a weak email.
+
+AGENT 1 — PROPORTIONALITY AGENT (runs first)
+- Is the prospect's firm matched to FCIM ($5.5B AUM, mid-market regional)?
+- Rule: prospect firm should not be more than ~5x FCIM's size.
+- Rule: counterpart seniority should be Director/VP/MD-at-small-firm —
+  not Partner / Group CEO / SEO at a $50bn+ firm.
+- Rule: Yehya is a first-year RM. If counterpart altitude requires Amr,
+  Ibrahim, or Steven to send the email, FLAG and do not draft from Yehya.
+- VERDICT: pass / fail / route-to-senior-colleague.
+
+AGENT 2 — PROBLEM AGENT
+- What is the prospect's specific, present-tense pain?
+- Avoid generic industry pain. Cite something from THEIR bio or firm news.
+- If you cannot name a specific situation, FAIL.
+
+AGENT 3 — WHY-US AGENT
+- Of the alternatives the prospect has, why FCIM specifically?
+- Differentiator must be concrete: 10-day formation, SCA derivatives access,
+  Foundation-as-parent, $5.5B balance sheet, etc.
+- USE THE FCIM EVIDENCE ABOVE — that is the ground-truth claim drawn from
+  FCIM's own corporate documentation. Do not invent claims that are not
+  supported by the evidence chunk.
+
+AGENT 4 — CREDIBILITY AGENT
+- The FCIM EVIDENCE block above provides one citable, FCIM-authored claim.
+  Lean on it explicitly in the email body.
+- If you find yourself writing claims not supported by the evidence chunk,
+  STOP and rewrite to stay within what the evidence covers.
+- Named deal/client references are a bonus but not required when the
+  evidence chunk is itself specific (e.g., "10 business days", "100%
+  concentration permitted").
+
+AGENT 5 — COUNTERPARTY AGENT
+- What institutional friction prevents this from happening?
+- Does the prospect have authority to act, or is this an upward-routed ask?
+- Is there a procurement / panel / preferred-partner process that blocks
+  ad-hoc onboarding?
+- Frame the email so it survives that friction (give the prospect something
+  forwardable, not just personal).
+
+AGENT 6 — THREAT AGENT
+- What is the worst, most cynical reading of this email from the
+  prospect's side?
+- "FCIM is fishing for our admin mandates" / "Random RM cold-pitching"
+  / "Generic outreach" — if any cynical reading is plausibly accurate,
+  rewrite to be ungameable.
+
+AGENT 7 — NEXT-STEP AGENT
+- What is the SMALLEST, lowest-friction next action that proves mutual
+  interest? (Not "20-min Binary Tower meeting" by default.)
+- For partnership conversations: a single binary question they can answer
+  in one line.
+- For client conversations: a specific, dated, named-contact next step.
+
+============================================================
+WRITING RULES (only after council passes)
+============================================================
+- Open with a SPECIFIC reference to their actual situation — drawn from
+  the bio / firm / role. Not "I came across your profile."
 - Lead with the diagnosed problem framed as observation, not assumption.
-- Position FCIM solution clearly but not pitchy. Reference real specifics ($6B AUM, CMA-licensed, SCA-licensed) where relevant.
-- Reference the warm-path FCIM colleague naturally only if it strengthens credibility.
+- Position FCIM solution clearly but not pitchy. Use the EVIDENCE chunk
+  above as your concrete proof point. Reference real specifics ($5.5B AUM,
+  CMA-licensed, SCA-licensed) where relevant.
+- Reference the warm-path FCIM colleague naturally only if it strengthens
+  credibility.
 - Do not glaze. Do not be over-eager. Do not pitch every service.
 - NEVER mention Gary Dugan.
 - Subject line: specific, attention-grabbing, not promotional, not cringe.
-- End with full Yehya signature: Yehya Abdelbaki / Relationship Manager / Fundament Capital Investment Management / Office 1511, The Binary Tower, Business Bay, Dubai.`;
+- Email format follows the FCIM standard: "Dear [Name], / My name is
+  Yehya Abdelbaki, Relationship Manager at FCIM..." opener; bullet body
+  (2-4 bullets max); "I would like to invite you to come and meet us at
+  The Binary Tower" closer; full signature.
+- End with full Yehya signature: Yehya Abdelbaki / Relationship Manager /
+  Fundament Capital Investment Management / $5.5B AUM | SCA & CMA Licensed |
+  Office 1511, The Binary Tower, Business Bay, Dubai, UAE / M: +971 55 280 6653
+  / yehya.abdelbaki@fundamentcapital.ae / www.fundamentcapital.ae
+
+OUTPUT FORMAT
+1. Council verdict (one paragraph): pass / skip / route-to-senior-colleague.
+2. If pass: subject line + full email + recommended PDF attachment (or none).
+3. If skip: one-sentence reason.
+4. If route-to-senior-colleague: name the colleague (Amr/Ibrahim/Steven/
+   Saran/Dmitri) and what they should send instead.`;
+}
+
+// v11: FCIM evidence base — citable PDF-sourced solution chunks loaded at build time.
+// PDFs themselves remain private (not committed to repo); only the curated evidence
+// JSON and citation references are rendered on the public site.
+let FCIM_EVIDENCE = [];
+try {
+  const ev = JSON.parse(fs.readFileSync('./fcim_evidence.json', 'utf-8'));
+  FCIM_EVIDENCE = ev.evidence || [];
+  console.log(`Loaded ${FCIM_EVIDENCE.length} FCIM evidence chunks for prospect-card grounding.`);
+} catch (e) {
+  console.warn('fcim_evidence.json not found alongside build.js — falling back to hardcoded SERVICES.solution text. Evidence citations will not appear on cards.');
+}
+
+// matchEvidence: given a prospect (with diagnosed service + bio text), find the
+// single highest-relevance evidence chunk. Returns null if no chunk matches the
+// service or if signal scoring is too weak to cite confidently.
+function matchEvidence(p) {
+  if (!FCIM_EVIDENCE.length) return null;
+  const dx = p.diagnosis || {};
+  const targetService = dx.fcimService;
+  if (!targetService) return null;
+
+  // Step 1: filter to evidence tagged with the diagnosed service.
+  const candidates = FCIM_EVIDENCE.filter(ev => ev.services.includes(targetService));
+  if (!candidates.length) return null;
+
+  // Step 2: score each candidate by signal-keyword hits in the prospect's bio + title.
+  const haystack = `${p.title || ''} ${p.about || ''} ${dx.problem || ''}`.toLowerCase();
+  const scored = candidates.map(ev => {
+    const hits = (ev.signals || []).filter(sig => haystack.includes(sig.toLowerCase())).length;
+    return { ev, hits };
+  });
+  scored.sort((a, b) => b.hits - a.hits);
+
+  // Step 3: pick the top match. If zero hits, fall back to the first candidate
+  // for the service (still citable, just less targeted).
+  const winner = scored[0];
+  return { evidence: winner.ev, hits: winner.hits };
+}
+
+function renderEvidenceBlock(p) {
+  const match = matchEvidence(p);
+  if (!match) return null;
+  const ev = match.evidence;
+  const targeted = match.hits > 0 ? '' : ' <span style="font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:#9a7a3a;">general — service-level</span>';
+  return `<div class="section evidence">
+    <div class="label">FCIM evidence${targeted}</div>
+    <p>${escapeHtml(ev.text)}</p>
+    <p class="citation"><em>Source: ${escapeHtml(ev.source_pdf)}, p.${ev.source_page}${ev.id ? ' \u00b7 ref ' + escapeHtml(ev.id) : ''}</em></p>
+  </div>`;
 }
 
 function prospectCardHtml(p, isFeatured) {
   const dx = p.diagnosis || {};
   const service = SERVICES.find(s => s.name === dx.fcimService);
   const solutionText = service ? service.solution : 'Service match indeterminate - review profile manually.';
+  const evidenceBlock = renderEvidenceBlock(p) || '';
   const complianceBlock = p.pep ? `<div class="compliance pep"><span class="label">Elevated DD</span>PEP / state-linked exposure detected. Run enhanced due diligence before outreach.</div>` : '';
   let emailLine;
   if (p.emailVerified && p.email) {
@@ -581,6 +799,7 @@ function prospectCardHtml(p, isFeatured) {
       </p></div>
       ${p.about ? `<div class="section"><div class="label">Background</div><p>${escapeHtml(p.about)}</p></div>` : ''}
       <div class="section"><div class="label">FCIM solution</div><p>${escapeHtml(solutionText)}</p></div>
+      ${evidenceBlock}
       <div class="section"><div class="label">Warm path</div><p>${escapeHtml(p.regionWarmPath || 'Region indeterminate. Route to best-matched FCIM colleague.')}</p></div>
       ${complianceBlock}
       <div class="first-step"><div class="label">First step</div>
@@ -700,6 +919,11 @@ header{border-bottom:1px solid var(--rule);padding-bottom:18px;margin-bottom:24p
 .compliance{padding:10px 14px;margin:14px 0;border-left:3px solid #c14;font-size:12px;background:#fdf3f3}
 .compliance .label{display:inline-block;font-size:9px;letter-spacing:0.18em;color:#c14;font-weight:700;margin-right:6px}
 
+.section.evidence{padding:12px 14px;margin:14px 0;background:#FAF6E8;border-left:3px solid var(--gold)}
+.section.evidence .label{color:var(--gold-deep)}
+.section.evidence p{margin:6px 0;font-size:13px;line-height:1.6}
+.section.evidence .citation{margin-top:8px;font-size:11px;color:var(--muted);letter-spacing:0.02em}
+
 .first-step{background:var(--cream-yellow);padding:14px 16px;margin-top:18px;border-left:3px solid var(--gold)}
 .first-step .label{font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--gold-deep);font-weight:600;margin-bottom:6px}
 .first-step p{margin:6px 0 12px;font-size:13.5px}
@@ -789,7 +1013,7 @@ document.querySelectorAll('.service-chip').forEach(c => {
 </body></html>`;
 
 async function main() {
-  console.log('FCIM Daily Build v10 - FCIM-aligned strategy + service nav - starting');
+  console.log('FCIM Daily Build v11 - size-matched mid-market targets + council prompt - starting');
   await checkApifyAccount();
   const buckets = pickTodaysQueries();
   console.log(`Today's buckets: ${buckets.map(b => b.label).join(' | ')}`);
