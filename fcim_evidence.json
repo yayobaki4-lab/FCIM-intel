@@ -1,0 +1,339 @@
+{
+  "version": "fcim_evidence.v1",
+  "built": "2026-05-04T11:53:35.998Z",
+  "note": "FCIM-authored evidence base extracted from the 9 corporate PDFs. Each prospect card pulls the most relevant chunk based on diagnosed signals. Source PDFs remain private; only the curated text is rendered, with citation to PDF + page.",
+  "evidence": [
+    {
+      "id": "pf-001",
+      "services": [
+        "Structuring (Private Funds)",
+        "Foundation + Private Fund"
+      ],
+      "signals": [
+        "fund launch",
+        "launching a fund",
+        "fund structuring",
+        "fund formation",
+        "GP",
+        "fund manager",
+        "private fund",
+        "fund admin",
+        "open ended fund"
+      ],
+      "text": "CMA private fund formation in 10 business days from initial submission. The regulator delivers final approval within that window once the documentation set is complete — substantially faster than DIFC or ADGM equivalents, and meaningfully faster than Cayman or BVI when factoring in the CMA fast-track regime.",
+      "source_pdf": "FCIM_Private_Funds.pdf",
+      "source_page": 6
+    },
+    {
+      "id": "pf-002",
+      "services": [
+        "Structuring (Private Funds)",
+        "Foundation + Private Fund"
+      ],
+      "signals": [
+        "UBO",
+        "beneficial owner",
+        "privacy",
+        "anonymity",
+        "confidential",
+        "undisclosed"
+      ],
+      "text": "CMA private funds permit UBO disclosure only to FCIM (as fund manager) and the CMA itself. Investor identity is not visible to fund administrators, custodians, banks, or counterparties — a level of UBO confidentiality not available in DIFC or ADGM regimes, and stronger than Cayman exempt funds where Cayman Beneficial Ownership Register applies.",
+      "source_pdf": "FCIM_Private_Funds.pdf",
+      "source_page": 7
+    },
+    {
+      "id": "pf-003",
+      "services": [
+        "Structuring (Private Funds)"
+      ],
+      "signals": [
+        "concentration",
+        "single asset",
+        "single investment",
+        "real estate fund",
+        "concentrated position"
+      ],
+      "text": "100% asset-class concentration is permitted within a CMA private fund. Unlike DIFC Qualified Investor Funds, which carry diversification obligations, a CMA fund can hold a single asset, a single equity position, a single debt instrument, or a concentrated commodity book without breaching regulatory diversification rules.",
+      "source_pdf": "FCIM_Private_Funds.pdf",
+      "source_page": 7
+    },
+    {
+      "id": "pf-004",
+      "services": [
+        "Structuring (Private Funds)",
+        "Foundation + Private Fund"
+      ],
+      "signals": [
+        "family holding",
+        "serial entrepreneur",
+        "multiple ventures",
+        "investment holding",
+        "foundation"
+      ],
+      "text": "A UAE Foundation can sit as parent over a CMA private fund, combining founder control via Charter and By-laws with the regulated wrapper of the fund. Founder retains decision rights; the fund administers the underlying assets under CMA supervision; UBO is invisible outside FCIM and the regulator.",
+      "source_pdf": "FCIM_Private_Funds.pdf",
+      "source_page": 8
+    },
+    {
+      "id": "pf-005",
+      "services": [
+        "Structuring (Private Funds)"
+      ],
+      "signals": [
+        "fund administration",
+        "NAV",
+        "fund accounting",
+        "fund operations",
+        "fund admin upgrade"
+      ],
+      "text": "FCIM fund administration covers fund accounting, trade booking, NAV calculation, corporate actions, compliance reporting, and investor relations. The team integrates as an extension of the sponsor’s operations rather than as a transactional vendor — appropriate for funds where standardized large-administrator service models do not fit the strategy.",
+      "source_pdf": "FCIM_Fund_Adminstration_Services.pdf",
+      "source_page": 3
+    },
+    {
+      "id": "pf-006",
+      "services": [
+        "Structuring (Private Funds)"
+      ],
+      "signals": [
+        "investment committee",
+        "board representation",
+        "investor governance",
+        "investor protection"
+      ],
+      "text": "Investors in a CMA private fund exercise direct control through placement of their directors on the investment committee, and through optional placement of their personnel with the administrator. Dual-control governance is built into the structure rather than negotiated separately.",
+      "source_pdf": "FCIM_Private_Funds.pdf",
+      "source_page": 6
+    },
+    {
+      "id": "co-001",
+      "services": [
+        "Commodities & Natural Resources"
+      ],
+      "signals": [
+        "physical commodity",
+        "commodity trader",
+        "agri trader",
+        "grain trader",
+        "energy trader",
+        "metals trader",
+        "oilseed",
+        "soybeans",
+        "wheat",
+        "crude oil",
+        "palm oil",
+        "sugar",
+        "cotton",
+        "fertilizer"
+      ],
+      "text": "SCA-licensed commodity derivatives platform with direct execution access to CME, CBOT, ICE, LME, EEX, SGX and the Baltic Exchange — covering soft and hard commodities, energy, metals, agri, freight (FFA), and environmental products. The client does not need to maintain its own clearing relationship or exchange membership; FCIM holds those at the platform level.",
+      "source_pdf": "FCIM_Commodity_Derivative_Solution.pdf",
+      "source_page": 5
+    },
+    {
+      "id": "co-002",
+      "services": [
+        "Commodities & Natural Resources"
+      ],
+      "signals": [
+        "hedging",
+        "price risk",
+        "commodity exposure",
+        "forward book",
+        "mark to market"
+      ],
+      "text": "Hedging applications across the physical-trading lifecycle: locking in margin between origin sourcing and destination delivery; managing freight risk on FFAs; converting USD/local-currency mismatch into rates derivatives; building structured collars around long-dated supply commitments. All under a single regulated derivative trading agreement with daily P&L reporting and margin monitoring.",
+      "source_pdf": "FCIM_Commodity_Derivative_Solution.pdf",
+      "source_page": 7
+    },
+    {
+      "id": "co-003",
+      "services": [
+        "Commodities & Natural Resources"
+      ],
+      "signals": [
+        "transparent fees",
+        "execution cost",
+        "derivative pricing",
+        "per lot"
+      ],
+      "text": "Per-lot transparent fee structure disclosed prior to any commitment. No hidden spread mark-up, no opaque execution cost. Suitable for clients running a derivatives program at scale where fee transparency is itself a margin contributor.",
+      "source_pdf": "FCIM_Commodity_Derivative_Solution.pdf",
+      "source_page": 8
+    },
+    {
+      "id": "co-004",
+      "services": [
+        "Commodities & Natural Resources"
+      ],
+      "signals": [
+        "trade finance",
+        "physical book",
+        "supply chain",
+        "shipment",
+        "cargo"
+      ],
+      "text": "For trade finance and physical-book operators: hedging programs sized to forward shipment book rather than to year-end position. The mechanism that separates firms which consistently protect gross margin from those that absorb full price variance shipment by shipment.",
+      "source_pdf": "FCIM_Commodity_Derivative_Solution.pdf",
+      "source_page": 7
+    },
+    {
+      "id": "ds-001",
+      "services": [
+        "Distressed & Special Situations"
+      ],
+      "signals": [
+        "distressed",
+        "special situations",
+        "turnaround",
+        "workout",
+        "restructuring",
+        "recapitalization",
+        "debt-for-equity",
+        "chapter 11"
+      ],
+      "text": "Distressed and special situations is a core specialty: disciplined underwriting and active engagement around recapitalizations, debt-for-equity exchanges, and discounted secondary acquisitions. FCIM positions where traditional institutions are constrained by scale, process, or risk appetite — typically in the $5m–$50m ticket range that mid-market situations require.",
+      "source_pdf": "FCIM_Corporate_Profile_2026.pdf",
+      "source_page": 4
+    },
+    {
+      "id": "ds-002",
+      "services": [
+        "Distressed & Special Situations"
+      ],
+      "signals": [
+        "secondary acquisition",
+        "discounted secondary",
+        "illiquid position",
+        "orphan position"
+      ],
+      "text": "Secondary-market discounted acquisitions of orphan or illiquid positions, with bespoke structuring around the regulatory and accounting consequences. The structure is built specifically for the underlying counterparty geometry rather than fitted into a standard product wrapper.",
+      "source_pdf": "FCIM_Corporate_Profile_2026.pdf",
+      "source_page": 5
+    },
+    {
+      "id": "ds-003",
+      "services": [
+        "Distressed & Special Situations",
+        "IB & Advisory"
+      ],
+      "signals": [
+        "MENA distressed",
+        "gulf distressed",
+        "regional credit",
+        "gulf real estate",
+        "CRE workout"
+      ],
+      "text": "Regional credit and Gulf-real-estate stress is structurally underbanked: the global credit funds operate at $50m+ tickets and the local banks are unwilling to step into impaired positions. FCIM operates the slice between those two — local-resident, regulated, balance-sheet-capable, and willing to underwrite Gulf paper that global desks size out of.",
+      "source_pdf": "FCIM_Strategic_Blueprint.pdf",
+      "source_page": 8
+    },
+    {
+      "id": "ib-001",
+      "services": [
+        "IB & Advisory"
+      ],
+      "signals": [
+        "M&A",
+        "mergers and acquisitions",
+        "capital raise",
+        "pre-IPO",
+        "going public",
+        "rights issue",
+        "sukuk",
+        "bond issue",
+        "corporate finance"
+      ],
+      "text": "IB & Advisory desk under Tim Almashat covers ECM (IPOs, rights issues, ADX/DFM listings), DCM (bonds, sukuk), end-to-end M&A advisory, valuations and feasibility studies, and CMA/ADX/DFM regulatory advisory. Mandate sweet spot is $50m–$150m transactions where bulge-bracket pricing is uneconomic and a regional advisor with CMA-counsel access closes faster.",
+      "source_pdf": "FCIM_Strategic_Blueprint.pdf",
+      "source_page": 12
+    },
+    {
+      "id": "ib-002",
+      "services": [
+        "IB & Advisory"
+      ],
+      "signals": [
+        "UAE listing",
+        "ADX",
+        "DFM",
+        "NASDAQ Dubai",
+        "IPO advisory"
+      ],
+      "text": "UAE listing advisory across ADX, DFM, and NASDAQ Dubai. Regulatory pathway, prospectus drafting, valuation cross-checks, sponsor coordination, and post-listing reporting — handled inside one mandate rather than split between investment bank, legal counsel, and CMA filer.",
+      "source_pdf": "FCIM_Strategic_Blueprint.pdf",
+      "source_page": 13
+    },
+    {
+      "id": "fo-001",
+      "services": [
+        "Family Office Advisory"
+      ],
+      "signals": [
+        "family office",
+        "2G",
+        "second generation",
+        "next generation",
+        "succession",
+        "legacy",
+        "estate planning",
+        "family business"
+      ],
+      "text": "Family office advisory covering governance design, multi-generational succession, estate planning, concierge, and direct deal access to VC and PE opportunities. Cross-border execution with discretion — appropriate for principals already operating across UAE, KSA, and home jurisdiction with multi-currency and multi-residency complexity.",
+      "source_pdf": "FCIM_Comprehensive_Solutions2026.pdf",
+      "source_page": 6
+    },
+    {
+      "id": "fo-002",
+      "services": [
+        "Family Office Advisory",
+        "Foundation + Private Fund"
+      ],
+      "signals": [
+        "founder control",
+        "family charter",
+        "family council",
+        "governance"
+      ],
+      "text": "UAE Foundation as the family-control vehicle: Charter and By-laws set the founder’s decision rights, succession protocol, and distribution policy under federal-law backing. Combined with a CMA private fund underneath, the Foundation governs while the fund executes — separating control from operations.",
+      "source_pdf": "FCIM_Private_Funds.pdf",
+      "source_page": 9
+    },
+    {
+      "id": "eam-001",
+      "services": [
+        "EAM / FI Platform"
+      ],
+      "signals": [
+        "EAM",
+        "external asset manager",
+        "independent wealth",
+        "boutique wealth",
+        "family wealth advisor"
+      ],
+      "text": "EAM / FI Platform with Confidential Client Money accounts at FAB. FCIM acts as secondary custodian and SCA-regulated execution backbone; the EAM retains the client relationship and investment mandate. The structure replaces the operational burden of running a regulated SCA broker-dealer with a platform-as-a-service relationship.",
+      "source_pdf": "FCIM_Portfolio_Management_Service.pdf",
+      "source_page": 5
+    },
+    {
+      "id": "dpm-001",
+      "services": [
+        "Discretionary Portfolio Management"
+      ],
+      "signals": [
+        "post-exit",
+        "exited",
+        "sold the company",
+        "PIC",
+        "personal investment company",
+        "liquid capital",
+        "HNW",
+        "UHNW"
+      ],
+      "text": "CMA-approved discretionary portfolio management mandates with five model portfolios and a $1m minimum. Strategic asset allocation, manager selection, and risk-resilient execution customized to the client’s risk profile and time horizon.",
+      "source_pdf": "FCIM_Portfolio_Management.pdf",
+      "source_page": 4
+    }
+  ]
+}
